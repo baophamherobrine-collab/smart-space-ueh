@@ -1,0 +1,2401 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart-Space UEH — smart-space.pages.ueh (Thư viện Cơ sở B - Tầng 6)</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ueh: {
+                            blue: '#003B5C',
+                            dark: '#0f4c5c',
+                            orange: '#f77f00',
+                            gold: '#fb8500',
+                            teal: '#0a9396'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Three.js & Controls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100vh;
+            height: 100dvh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Mobile Device Frame Mockup */
+        .device-mockup {
+            width: 360px;
+            height: 740px;
+            max-height: calc(100vh - 80px);
+            background-color: #003B5C;
+            border-radius: 2.8rem;
+            border: 10px solid #0f172a;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 2D Seat Map Dots */
+        .seat-2d {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .seat-2d:hover {
+            transform: translate(-50%, -50%) scale(1.4);
+            box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            z-index: 20;
+        }
+        .seat-2d.vacant { background-color: #10b981; }
+        .seat-2d.occupied { background-color: #ef4444; }
+        .seat-2d.reserved {
+            background-color: #f59e0b;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4);
+            animation: pulse-reserved 1.5s infinite;
+        }
+        .seat-2d.warning {
+            background-color: #f97316;
+            box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.6);
+            animation: pulse-warning 0.8s infinite;
+        }
+
+        @keyframes pulse-reserved {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.25); }
+        }
+        @keyframes pulse-warning {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); background-color: #ef4444; }
+            50% { transform: translate(-50%, -50%) scale(1.35); background-color: #f97316; }
+        }
+
+        /* 3D Floating Tag Badges */
+        .ai-label {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid #06b6d4;
+            color: #fff;
+            padding: 2px 7px;
+            font-size: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            pointer-events: none;
+            white-space: nowrap;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            transition: border-color 0.2s;
+            z-index: 15;
+        }
+        .ai-label.warning {
+            border-color: #f97316;
+            background: rgba(120, 20, 20, 0.9);
+            color: #fef08a;
+            animation: bounce-warning 1s infinite alternate;
+        }
+        @keyframes bounce-warning {
+            from { transform: translate(-50%, -100%); }
+            to { transform: translate(-50%, -115%); }
+        }
+
+        /* Radar Scanning Sweep */
+        .radar-sweep {
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, transparent);
+            animation: radar-sweep-anim 3s linear infinite;
+        }
+        @keyframes radar-sweep-anim {
+            0% { top: 0; opacity: 0; }
+            20% { opacity: 0.8; }
+            80% { opacity: 0.8; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* Modal transitions */
+        .modal-overlay {
+            opacity: 0; pointer-events: none; transition: opacity 0.25s ease-out;
+        }
+        .modal-overlay.active {
+            opacity: 1; pointer-events: auto;
+        }
+        .modal-card {
+            transform: scale(0.95); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col overflow-hidden selection:bg-teal-500 selection:text-white">
+
+    <!-- ==================== TOP NAVIGATION BAR ==================== -->
+    <header class="h-14 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 flex items-center justify-between flex-shrink-0 z-50 shadow-md">
+        <!-- Logo & Space Info -->
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#003B5C] to-[#0a9396] flex items-center justify-center shadow-lg shadow-teal-900/40 border border-teal-500/30">
+                <span class="font-extrabold text-lg text-white tracking-wider">UEH</span>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-sm font-bold text-white tracking-tight">Smart-Space UEH</h1>
+                    <span class="bg-teal-500/20 text-teal-300 border border-teal-500/30 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-teal-400 animate-ping"></span>
+                        Edge AI 60 FPS
+                    </span>
+                </div>
+                <p class="text-[11px] text-slate-400">Thư viện Cơ sở B · Tầng 6 (NTP - B1.603) · 1.300 m²</p>
+            </div>
+        </div>
+
+        <!-- Domain URL Pill Badge -->
+        <div class="hidden xl:flex items-center gap-2 bg-slate-950/80 border border-slate-700/80 px-3.5 py-1 rounded-full text-xs font-mono shadow-inner">
+            <span class="flex h-2 w-2 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span class="text-slate-400">🌐</span>
+            <span class="text-teal-400 font-bold">smart-space.pages.ueh</span>
+        </div>
+
+        <!-- Mode Switcher Tabs (Protected by Role) -->
+        <nav id="top-nav-tabs" class="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 shadow-inner">
+            <!-- Student Mode Info Banner (Visible for Student) -->
+            <div id="student-role-indicator" class="hidden flex items-center gap-2 px-3 py-1.5 bg-teal-950/70 border border-teal-500/40 rounded-lg text-xs text-teal-300 font-semibold">
+                <span>📱</span>
+                <span>Cổng Sinh viên UEH</span>
+                <span class="text-[10px] text-teal-400/70 font-normal">| App Đặt chỗ & Check-in</span>
+            </div>
+
+            <!-- Admin Navigation Buttons (Visible for Admin) -->
+            <button onclick="switchView('split')" id="btn-view-split" class="view-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-700 shadow-sm transition-all">
+                <svg class="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>
+                <span>Màn hình Kép (3D + App)</span>
+            </button>
+            <button onclick="switchView('mobile')" id="btn-view-mobile" class="view-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">
+                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                <span>App Sinh viên</span>
+            </button>
+            <button onclick="switchView('twin')" id="btn-view-twin" class="view-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">
+                <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"></path></svg>
+                <span>3D Digital Twin</span>
+            </button>
+            <button onclick="switchView('admin')" id="btn-view-admin" class="view-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">
+                <svg class="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span>Quản trị Admin</span>
+            </button>
+        </nav>
+
+        <!-- User Profile & Action Tools -->
+        <div class="flex items-center gap-2.5">
+            <!-- 1-Click Fast Role Toggle Button -->
+            <button onclick="toggleRoleQuickly()" id="btn-quick-role-toggle" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-teal-950/70 text-teal-300 border border-teal-500/50 hover:bg-teal-900 transition flex items-center gap-1.5 shadow-sm" title="Chuyển đổi nhanh vai trò để kiểm thử">
+                <span>🎓 SV</span> <span class="text-[10px] text-teal-400">➜ Đổi Admin</span>
+            </button>
+
+            <!-- Sound FX Toggle -->
+            <button onclick="toggleAudio()" id="btn-audio" title="Âm thanh thông báo" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition">
+                <svg id="icon-audio-on" class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                <svg id="icon-audio-off" class="w-4 h-4 text-slate-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+            </button>
+
+            <!-- Current User Badge / Auth trigger -->
+            <div id="user-display-block" class="flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1 rounded-xl">
+                <div id="user-avatar-dot" class="w-6 h-6 rounded-full bg-teal-500/30 text-teal-300 font-bold text-xs flex items-center justify-center border border-teal-500/50">
+                    SV
+                </div>
+                <div class="text-left">
+                    <p id="user-name-text" class="text-xs font-semibold text-white leading-tight">SV. Nguyễn Văn B</p>
+                    <p id="user-role-text" class="text-[10px] text-teal-400">Sinh viên UEH (Chỉ dùng App)</p>
+                </div>
+                <button onclick="openAuthModal()" class="ml-1 text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700" title="Đổi tài khoản / Đăng nhập">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
+    <main class="flex-1 w-full h-[calc(100vh-56px)] relative overflow-hidden flex flex-col">
+
+        <!-- VIEW WRAPPER: SPLIT VIEW (DEFAULT) -->
+        <div id="view-split" class="w-full h-full flex overflow-hidden">
+            
+            <!-- LEFT 64%: 3D DIGITAL TWIN SIMULATION -->
+            <div id="scene-wrapper" class="w-[64%] h-full relative border-r border-slate-800 bg-slate-950 flex flex-col overflow-hidden">
+                <!-- 3D Canvas Container -->
+                <div id="canvas-container" style="width:100%;height:100%;position:absolute;inset:0;"></div>
+                <!-- 3D HUD Projected Labels -->
+                <div id="labels-container" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
+                <!-- 3D Floating Top HUD -->
+                <div class="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2 pointer-events-auto">
+                    <!-- Title Badge -->
+                    <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="text-xs font-bold uppercase tracking-wider text-white">NTP CAMPUS - LEVEL 6</span>
+                        <span class="text-[10px] text-teal-400 border-l border-slate-700 pl-2">Digital Twin 3D</span>
+                    </div>
+
+                    <!-- AI Toggle Pill -->
+                    <button onclick="toggleAIMode()" id="btn-toggle-ai" class="bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-900/30 transition">
+                        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                        <span id="text-ai-toggle">AI: BẬT (Skeletal Vision)</span>
+                    </button>
+
+                    <!-- Camera Angle Selector -->
+                    <div class="relative bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl px-2 py-1 flex items-center gap-1 shadow-lg">
+                        <span class="text-[10px] text-slate-400 pl-1 font-semibold">Góc nhìn:</span>
+                        <select id="camera-selector" onchange="changeCameraAngle(this.value)" class="bg-transparent text-xs font-semibold text-slate-200 outline-none cursor-pointer pr-2">
+                            <option value="overview">Toàn cảnh 3D (Isometric)</option>
+                            <option value="entrance">Sảnh Thang Máy & Cửa Vào</option>
+                            <option value="quiet">Quiet Study (Tự học yên tĩnh)</option>
+                            <option value="sofa">Conversational Sofa</option>
+                            <option value="auditorium">Mini Auditorium & Reading</option>
+                            <option value="meeting">Phòng Họp Nhóm (Meeting Room)</option>
+                            <option value="cctv1">🎥 CCTV Cam 01 (Trần Sảnh)</option>
+                            <option value="cctv2">🎥 CCTV Cam 02 (Trần Quiet Study)</option>
+                        </select>
+                    </div>
+
+                    <!-- Reset Camera Button -->
+                    <button onclick="resetCameraView()" class="bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1.5 rounded-xl text-xs font-medium transition" title="Đặt lại góc nhìn">
+                        👁 Toàn cảnh
+                    </button>
+                </div>
+
+                <!-- 3D Simulation Controls (Bottom-Left) -->
+                <div class="absolute bottom-4 left-4 z-20 pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-3 rounded-2xl shadow-xl flex flex-col gap-2 max-w-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Mô phỏng Chuyển động Sinh viên
+                        </span>
+                        <span class="text-[10px] text-slate-400">WASD: Di chuyển</span>
+                    </div>
+
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="spawnStudent()" class="bg-teal-600/80 hover:bg-teal-500 text-white px-2.5 py-1 rounded-lg text-[11px] font-semibold transition">
+                            + Thêm SV vào sảnh
+                        </button>
+                        <button onclick="simulateBackpackDrop()" class="bg-amber-600/80 hover:bg-amber-500 text-white px-2.5 py-1 rounded-lg text-[11px] font-semibold transition">
+                            ⚠️ Giả lập để Balo (Xí chỗ)
+                        </button>
+                        <button onclick="clearAllSeats()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-lg text-[11px] transition">
+                            Giải phóng tất cả
+                        </button>
+                    </div>
+
+                    <!-- Skeletal Status Legend -->
+                    <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+                        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Trống</div>
+                        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Có người (Đỏ)</div>
+                        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Giữ chỗ (Vàng)</div>
+                        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> Balo xí chỗ</div>
+                    </div>
+                </div>
+
+                <!-- CCTV Watermark / Live Stamp (Top-Right) -->
+                <div class="absolute top-4 right-4 z-20 pointer-events-none bg-slate-900/80 backdrop-blur border border-slate-700/60 px-3 py-1.5 rounded-xl text-right">
+                    <p class="text-[10px] font-mono text-emerald-400 font-bold">● REC [CCTV-AI-NET] <span id="live-time-stamp">00:00:00</span></p>
+                    <p class="text-[9px] text-slate-400">Privacy-by-Design: Không lưu khuôn mặt</p>
+                </div>
+            </div>
+
+            <!-- RIGHT 36%: STUDENT MOBILE APP SYNCHRONIZATION -->
+            <div class="w-[36%] h-full bg-slate-900 border-l border-slate-800 flex items-center justify-center p-3 relative overflow-hidden">
+                <div class="radar-sweep"></div>
+
+                <!-- Mobile Device Frame -->
+                <div class="device-mockup">
+                    <!-- Phone Notch & Status Bar -->
+                    <div class="h-7 w-full flex justify-between items-center px-6 text-white text-[11px] font-semibold pt-2 select-none">
+                        <span>09:41</span>
+                        <div class="w-20 h-4 bg-slate-900 rounded-full mx-auto"></div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px]">5G</span>
+                            <div class="w-4 h-2.5 border border-white rounded-sm p-0.5"><div class="h-full bg-emerald-400 w-3"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- App Header -->
+                    <header class="px-5 pt-2 pb-1.5 text-white flex justify-between items-center">
+                        <div>
+                            <h2 class="text-base font-extrabold tracking-tight">Smart-Space UEH</h2>
+                            <p class="text-[10px] text-teal-300 font-medium flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-teal-400"></span> Thư viện Cơ sở B · Tầng 6
+                            </p>
+                        </div>
+                        <button onclick="openQRModal()" class="w-8 h-8 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40 flex items-center justify-center hover:bg-teal-500 hover:text-white transition" title="Quét mã QR tại bàn">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                        </button>
+                    </header>
+
+                    <!-- Filter Toolbars (Step 2 from PDF) -->
+                    <div class="px-4 py-1.5">
+                        <div class="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar text-[10px]">
+                            <button onclick="applyFilter('all')" id="flt-all" class="app-filter-chip bg-teal-600 text-white px-2.5 py-1 rounded-full font-semibold whitespace-nowrap shadow-sm">
+                                Tất cả (32)
+                            </button>
+                            <button onclick="applyFilter('power')" id="flt-power" class="app-filter-chip bg-slate-800 text-teal-300 border border-slate-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
+                                ⚡ Có ổ cắm
+                            </button>
+                            <button onclick="applyFilter('quiet')" id="flt-quiet" class="app-filter-chip bg-slate-800 text-teal-300 border border-slate-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
+                                🤫 Khu yên tĩnh
+                            </button>
+                            <button onclick="applyFilter('vacant')" id="flt-vacant" class="app-filter-chip bg-slate-800 text-teal-300 border border-slate-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
+                                🟢 Ghế trống
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2D Interactive Seat Map (Matching Floorplan) -->
+                    <div class="flex-1 bg-slate-900 mx-3 mb-2 rounded-2xl overflow-hidden relative border border-slate-700/80 flex flex-col p-2 shadow-inner">
+                        <!-- Legend -->
+                        <div class="flex justify-between items-center px-1 mb-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Trống (<span id="count-vacant">0</span>)</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Đã ngồi (<span id="count-occupied">0</span>)</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Giữ chỗ (<span id="count-reserved">0</span>)</span>
+                        </div>
+
+                        <!-- 2D Canvas Area (Floor Plan Schematic) -->
+                        <div id="map-area" class="flex-1 relative bg-slate-950 rounded-xl border border-slate-800 overflow-hidden select-none">
+                            
+                            <!-- Zones Background Blueprint (NTP Level 6) -->
+                            <div class="absolute inset-0">
+                                <!-- Top Strip: Toilet & Elevator & Sảnh vào -->
+                                <div class="absolute top-0 left-0 w-[35%] h-[25%] bg-slate-800/80 border-r border-b border-slate-700 p-1 flex flex-col justify-between">
+                                    <span class="text-[8px] font-bold text-slate-300">ELEVATOR & TOILET</span>
+                                    <span class="text-[7px] text-slate-500">Lối vào</span>
+                                </div>
+                                <div class="absolute top-0 left-[35%] w-[65%] h-[25%] bg-rose-950/60 border-b border-rose-800/50 p-1 flex justify-between">
+                                    <span class="text-[8px] font-bold text-rose-300">ASK-US-NOW</span>
+                                    <span class="text-[7px] text-rose-400">Quầy thủ thư</span>
+                                </div>
+
+                                <!-- Middle Left: Meeting Room (Purple) -->
+                                <div class="absolute top-[25%] left-0 w-[40%] h-[25%] bg-purple-950/60 border-r border-b border-purple-800/50 p-1">
+                                    <span class="text-[8px] font-bold text-purple-300">MEETING ROOM</span>
+                                </div>
+
+                                <!-- Middle Center-Left: Conversational Sofa (Green) -->
+                                <div class="absolute top-[50%] left-0 w-[40%] h-[25%] bg-emerald-950/60 border-r border-b border-emerald-800/50 p-1">
+                                    <span class="text-[8px] font-bold text-emerald-300">CONVERSATIONAL SOFA</span>
+                                </div>
+
+                                <!-- Bottom Left: Mini Auditorium (Yellow) -->
+                                <div class="absolute top-[75%] left-0 w-[40%] h-[25%] bg-amber-950/60 border-r border-b border-amber-800/50 p-1">
+                                    <span class="text-[8px] font-bold text-amber-300">MINI AUDITORIUM</span>
+                                </div>
+
+                                <!-- Right 60%: Quiet Study Area (Blue) -->
+                                <div class="absolute top-[25%] left-[40%] w-[60%] h-[75%] bg-sky-950/60 border-sky-800/50 p-1 flex flex-col justify-between">
+                                    <div class="flex justify-between">
+                                        <span class="text-[8px] font-bold text-sky-300">QUIET STUDY ZONE</span>
+                                        <span class="text-[7px] text-sky-400">⚡ 100% Ổ cắm điện</span>
+                                    </div>
+                                    <div class="text-[7px] text-slate-500 text-right">Bàn tự học cá nhân</div>
+                                </div>
+                            </div>
+
+                            <!-- 2D Seats Injected Here by JS -->
+                            <div id="seats-container-2d" class="absolute inset-0"></div>
+                        </div>
+
+                        <!-- Active Reservation Mini Status Card (Step 3 Workflow) -->
+                        <div id="active-res-banner" class="hidden mt-2 bg-gradient-to-r from-amber-600/90 to-orange-600/90 rounded-xl p-2.5 text-white shadow-lg animate-pulse">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-amber-200">Đang giữ chỗ ngắn hạn</p>
+                                    <p class="text-xs font-extrabold" id="active-res-seat-id">Ghế Q-04 · Quiet Study</p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-sm font-mono font-black" id="res-countdown-timer">14:59</span>
+                                    <p class="text-[9px] text-amber-100">Đếm ngược thang máy</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="openQRModal()" class="flex-1 bg-white text-orange-700 py-1 rounded-lg text-[10px] font-bold hover:bg-orange-50 transition">
+                                    Quét QR Check-in bàn
+                                </button>
+                                <button onclick="cancelMyReservation()" class="bg-black/30 text-white px-2 py-1 rounded-lg text-[10px] hover:bg-black/40">
+                                    Hủy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Navigation Bar inside Phone -->
+                    <nav class="h-14 bg-slate-900 border-t border-slate-800 flex justify-around items-center px-4">
+                        <button class="flex flex-col items-center text-teal-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                            <span class="text-[9px] font-semibold mt-0.5">Sơ đồ</span>
+                        </button>
+                        <button onclick="openQRModal()" class="w-10 h-10 -mt-5 rounded-full bg-gradient-to-tr from-[#f77f00] to-[#fb8500] text-white flex items-center justify-center shadow-lg shadow-orange-900/50 border-2 border-slate-900 hover:scale-105 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                        </button>
+                        <button onclick="handlePhoneAdminClick()" id="phone-admin-btn" class="flex flex-col items-center text-slate-400 hover:text-white" title="Tài khoản / Quản trị">
+                            <svg id="phone-admin-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            <span id="phone-admin-label" class="text-[9px] font-semibold mt-0.5">Tài khoản</span>
+                        </button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: ADMIN DASHBOARD (Styled as sodientu.pages.dev/admin) ==================== -->
+        <div id="view-admin" class="hidden flex-1 overflow-y-auto bg-slate-900 text-slate-100 p-6">
+            <div class="max-w-7xl mx-auto space-y-6">
+
+                <!-- Admin Top Header Banner -->
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-slate-800">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <p class="text-xs uppercase tracking-widest font-bold text-teal-400">KHÔNG GIAN QUẢN TRỊ · THƯ VIỆN ĐIỆN TỬ UEH</p>
+                            <span class="inline-flex items-center gap-1 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-mono text-teal-300">
+                                🌐 smart-space.pages.ueh/admin
+                            </span>
+                        </div>
+                        <h1 class="text-2xl md:text-3xl font-extrabold text-white mt-1">Hệ thống Giám sát & Thống kê Chỗ ngồi (Tầng 6 NTP)</h1>
+                        <p class="text-xs text-slate-400 mt-1">Đồng bộ IoT Edge AI Skeletal Tracking · Tự động giải phóng vị trí thời gian thực</p>
+                    </div>
+
+                    <!-- Admin Actions -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="exportCSVReport()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Xuất Báo Cáo Excel / CSV
+                        </button>
+                        <button onclick="switchView('split')" class="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-md shadow-teal-900/40">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            Xem Mô Phỏng 3D
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Navigation Tabs -->
+                <div class="flex gap-4 border-b border-slate-800 overflow-x-auto no-scrollbar">
+                    <button onclick="switchAdminTab('stats')" id="tab-btn-stats" class="admin-tab-btn py-3 px-1 text-sm font-semibold border-b-2 border-teal-500 text-teal-400 whitespace-nowrap">
+                        📊 Tổng quan & Thống kê
+                    </button>
+                    <button onclick="switchAdminTab('seats')" id="tab-btn-seats" class="admin-tab-btn py-3 px-1 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap">
+                        🪑 Quản lý Chỗ ngồi & Tọa độ IoT
+                    </button>
+                    <button onclick="switchAdminTab('logs')" id="tab-btn-logs" class="admin-tab-btn py-3 px-1 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap">
+                        📋 Nhật ký Lượt sử dụng
+                    </button>
+                    <button onclick="switchAdminTab('config')" id="tab-btn-config" class="admin-tab-btn py-3 px-1 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap">
+                        ⚙️ Cấu hình AI Skeletal
+                    </button>
+                </div>
+
+                <!-- TAB 1: TỔNG QUAN & THỐNG KÊ (KPI STATS + CHARTS) -->
+                <div id="admin-tab-stats" class="space-y-6">
+                    <!-- KPI Cards Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 font-medium">Tổng lượt SV hôm nay</p>
+                            <p class="text-2xl font-bold text-white mt-2" id="kpi-total-visits">1,284</p>
+                            <p class="text-[10px] text-emerald-400 mt-1">↑ +14.2% so với hôm qua</p>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 font-medium">Tỷ lệ lấp đầy (Occupancy)</p>
+                            <p class="text-2xl font-bold text-teal-300 mt-2" id="kpi-occupancy-rate">68.8%</p>
+                            <p class="text-[10px] text-slate-400 mt-1" id="kpi-seat-fraction">22 / 32 chỗ</p>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 font-medium">Ghế đang có người</p>
+                            <p class="text-2xl font-bold text-red-400 mt-2" id="kpi-occupied">22</p>
+                            <p class="text-[10px] text-red-300 mt-1">AI phát hiện khung xương</p>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 font-medium">Ghế trống khả dụng</p>
+                            <p class="text-2xl font-bold text-emerald-400 mt-2" id="kpi-vacant">8</p>
+                            <p class="text-[10px] text-emerald-300 mt-1">Sẵn sàng nhận chỗ</p>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 font-medium">Đang giữ chỗ ngắn hạn</p>
+                            <p class="text-2xl font-bold text-amber-400 mt-2" id="kpi-reserved">2</p>
+                            <p class="text-[10px] text-amber-300 mt-1">Hẹn giờ 10-15 phút</p>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 shadow-sm">
+                            <p class="text-xs text-slate-400 font-medium">Cảnh báo xí chỗ (Balo)</p>
+                            <p class="text-2xl font-bold text-orange-400 mt-2" id="kpi-warnings">1</p>
+                            <p class="text-[10px] text-orange-300 mt-1">Vật thể > 5p không người</p>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Chart: Lượng sử dụng theo khung giờ -->
+                        <div class="lg:col-span-2 bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h3 class="text-sm font-bold text-white">Lưu Lượng Sinh Viên Theo Khung Giờ (07:00 - 21:00)</h3>
+                                    <p class="text-xs text-slate-400">Đỉnh điểm cao nhất vào 09:30 - 11:30 và 14:00 - 16:30</p>
+                                </div>
+                                <span class="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-1 rounded-md font-medium border border-teal-500/30">Hôm nay</span>
+                            </div>
+                            <div class="h-64">
+                                <canvas id="chart-hourly-traffic"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Chart: Phân bổ theo khu vực -->
+                        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 shadow-sm flex flex-col">
+                            <div class="mb-3">
+                                <h3 class="text-sm font-bold text-white">Phân Bổ Tỷ Lệ Theo Khu Vực</h3>
+                                <p class="text-xs text-slate-400">Quiet Study chiếm 50% tổng số chỗ</p>
+                            </div>
+                            <div class="flex-1 flex items-center justify-center h-52">
+                                <canvas id="chart-zone-distribution"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live AI Edge Events Feed -->
+                    <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-teal-400 animate-ping"></span>
+                                Nhật Ký Sự Kiện Real-time từ Edge AI Processor
+                            </h3>
+                            <button onclick="clearEventLogs()" class="text-xs text-slate-400 hover:text-white">Xóa bớt</button>
+                        </div>
+                        <div id="live-event-stream" class="space-y-2 max-h-48 overflow-y-auto font-mono text-xs text-slate-300 pr-2">
+                            <!-- Events injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: QUẢN LÝ CHỖ NGỒI (TABLE VIEW) -->
+                <div id="admin-tab-seats" class="hidden space-y-4">
+                    <!-- Filters & Search -->
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 flex flex-wrap gap-3 items-center justify-between">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input id="admin-search-seat" oninput="renderAdminSeatsTable()" type="text" placeholder="Tìm theo mã ghế, khu vực..." class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 w-56">
+                            <select id="admin-filter-zone" onchange="renderAdminSeatsTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none">
+                                <option value="all">Tất cả khu vực</option>
+                                <option value="Quiet Study">Quiet Study (16)</option>
+                                <option value="Meeting Room">Meeting Room (6)</option>
+                                <option value="Conversational Sofa">Conversational Sofa (4)</option>
+                                <option value="Mini Auditorium">Mini Auditorium (6)</option>
+                            </select>
+                            <select id="admin-filter-status" onchange="renderAdminSeatsTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none">
+                                <option value="all">Tất cả trạng thái</option>
+                                <option value="vacant">Trống (Vacant)</option>
+                                <option value="occupied">Có người (Occupied)</option>
+                                <option value="reserved">Giữ chỗ (Reserved)</option>
+                                <option value="warning">Cảnh báo xí chỗ</option>
+                            </select>
+                        </div>
+                        <button onclick="releaseAllSeatsPrompt()" class="bg-red-900/60 hover:bg-red-800 text-red-200 border border-red-700/60 px-3 py-1.5 rounded-xl text-xs font-semibold transition">
+                            Giải phóng toàn bộ ghế
+                        </button>
+                    </div>
+
+                    <!-- Seats Table -->
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                    <tr>
+                                        <th class="py-3 px-4">Mã Ghế</th>
+                                        <th class="py-3 px-4">Khu Vực</th>
+                                        <th class="py-3 px-4">Ổ Cắm</th>
+                                        <th class="py-3 px-4">Độ Ồn (dB)</th>
+                                        <th class="py-3 px-4">Tọa Độ 3D (X, Z)</th>
+                                        <th class="py-3 px-4">Trạng Thái AI</th>
+                                        <th class="py-3 px-4">Người Sử Dụng</th>
+                                        <th class="py-3 px-4 text-right">Thao Tác Quản Trị</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-seats-tbody" class="divide-y divide-slate-700/60 font-medium">
+                                    <!-- Rendered by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: NHẬT KÝ LƯỢT SỬ DỤNG (LOGS & SESSIONS) -->
+                <div id="admin-tab-logs" class="hidden space-y-4">
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 flex flex-wrap gap-3 items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Lịch Sử Sử Dụng Chỗ Ngồi & Check-in</h3>
+                            <p class="text-xs text-slate-400">Lưu trữ các phiên sinh viên sử dụng, quét QR check-in và tự động giải phóng</p>
+                        </div>
+                        <button onclick="exportCSVReport()" class="bg-teal-600 hover:bg-teal-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Tải file CSV
+                        </button>
+                    </div>
+
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                <tr>
+                                    <th class="py-3 px-4">Mã Phiên</th>
+                                    <th class="py-3 px-4">MSSV</th>
+                                    <th class="py-3 px-4">Họ và Tên</th>
+                                    <th class="py-3 px-4">Ghế</th>
+                                    <th class="py-3 px-4">Thời Gian Vào</th>
+                                    <th class="py-3 px-4">Thời Gian Ra</th>
+                                    <th class="py-3 px-4">Thời Lượng</th>
+                                    <th class="py-3 px-4">Phương Thức</th>
+                                    <th class="py-3 px-4">Trạng Thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-logs-tbody" class="divide-y divide-slate-700/60 font-medium">
+                                <!-- Rendered by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 4: CẤU HÌNH AI SKELETAL CAMERA (YOLO-POSE / PRIVACY) -->
+                <div id="admin-tab-config" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- AI Model Parameters -->
+                        <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-5 space-y-4">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                Thông Số Mô Hình AI Edge Processor
+                            </h3>
+
+                            <div>
+                                <label class="text-xs text-slate-300 font-medium block mb-1">Mô hình AI Khung Xương (Pose Estimation)</label>
+                                <select id="cfg-ai-model" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                                    <option value="yolov8x-pose">YOLOv8-Pose (Tối ưu độ chính xác cao nhất · Khuyên dùng)</option>
+                                    <option value="mediapipe">Google MediaPipe Pose (33 Điểm khớp Keypoints)</option>
+                                    <option value="openpose">OpenPose Realtime Multi-Person</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                    <span>Độ tin cậy nhận diện (Confidence Threshold):</span>
+                                    <span id="cfg-conf-val" class="text-teal-400 font-bold">85%</span>
+                                </div>
+                                <input type="range" min="50" max="99" value="85" oninput="document.getElementById('cfg-conf-val').innerText = this.value + '%'" class="w-full accent-teal-500">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                    <span>Thời gian cảnh báo Xí Chỗ (Vật thể không người):</span>
+                                    <span class="text-amber-400 font-bold">5 Phút</span>
+                                </div>
+                                <input type="range" min="1" max="15" value="5" class="w-full accent-amber-500">
+                                <p class="text-[10px] text-slate-400 mt-0.5">Sau 5 phút phát hiện balo/sách nhưng không có khung xương người -> Kích hoạt cảnh báo</p>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                                    <span>Thời gian Tự Động Giải Phóng Ghế Vắng Mặt:</span>
+                                    <span class="text-red-400 font-bold">15 Phút</span>
+                                </div>
+                                <input type="range" min="5" max="30" value="15" class="w-full accent-red-500">
+                                <p class="text-[10px] text-slate-400 mt-0.5">Sinh viên đi ra ngoài quá 15 phút không gia hạn -> Tự đổi sang Trống (Vacant)</p>
+                            </div>
+                        </div>
+
+                        <!-- Privacy-by-Design Compliance Card -->
+                        <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-5 space-y-4">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                                Bảo Vệ Quyền Riêng Tư (Privacy-by-Design)
+                            </h3>
+
+                            <div class="p-3 bg-emerald-950/40 border border-emerald-800/50 rounded-xl space-y-2">
+                                <p class="text-xs text-emerald-300 font-bold">✓ Tiêu chuẩn bảo mật tuyệt đối cho Sinh viên UEH</p>
+                                <p class="text-[11px] text-slate-300 leading-relaxed">
+                                    Máy quay trần thư viện chỉ truyền hình ảnh trực tiếp vào chip xử lý AI tại biên (Edge Processor). <strong>Hình ảnh khuôn mặt KHÔNG bao giờ được ghi hình hay lưu trữ vào máy chủ hoặc cơ sở dữ liệu.</strong>
+                                </p>
+                                <p class="text-[11px] text-slate-300 leading-relaxed">
+                                    Dữ liệu duy nhất được gửi qua WebSocket/MQTT lên Cloud là gói JSON siêu nhẹ chứa tọa độ khớp xương số: <code class="bg-slate-900 px-1 py-0.5 rounded text-teal-300">{ seat_id: "Q-03", occupied: true, keypoints: [...] }</code>
+                                </p>
+                            </div>
+
+                            <button onclick="showToast('Đã lưu cấu hình AI Edge thành công!')" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition">
+                                Lưu Cấu Hình Hệ Thống
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== MODALS & POPUPS ==================== -->
+
+    <!-- SEAT RESERVATION MODAL (STEP 3 WORKFLOW) -->
+    <div id="modal-reserve" class="modal-overlay fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="modal-card bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative text-left">
+            <button onclick="closeModal('modal-reserve')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <div class="w-12 h-12 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/40 flex items-center justify-center mb-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+            </div>
+
+            <h3 class="text-lg font-bold text-white mb-1">Xác nhận giữ chỗ ngắn hạn</h3>
+            <p id="modal-seat-title" class="text-xs text-teal-300 font-semibold mb-3">Ghế Q-04 · Khu Quiet Study</p>
+
+            <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/80 space-y-2 mb-4 text-xs">
+                <div class="flex justify-between text-slate-300">
+                    <span>Thời gian giữ chỗ:</span>
+                    <span class="text-amber-400 font-bold">15 Phút (Đếm ngược)</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                    <span>Mục đích:</span>
+                    <span class="text-slate-200">Di chuyển thang máy lên Tầng 6</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                    <span>Tiện ích:</span>
+                    <span id="modal-seat-features" class="text-emerald-400">⚡ Ổ cắm điện · 🤫 35 dB</span>
+                </div>
+            </div>
+
+            <p class="text-[11px] text-slate-400 leading-relaxed mb-5">
+                Khi đến đúng vị trí bàn tại Tầng 6 Thư viện, hãy quét mã QR dán trên góc bàn để xác nhận check-in và bắt đầu buổi học.
+            </p>
+
+            <div class="flex gap-2">
+                <button onclick="confirmSeatReservation()" class="flex-1 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-teal-900/40 transition">
+                    Đồng ý giữ chỗ
+                </button>
+                <button onclick="closeModal('modal-reserve')" class="px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs border border-slate-700">
+                    Hủy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR CODE CHECK-IN SCANNER SIMULATOR (STEP 4 WORKFLOW) -->
+    <div id="modal-qr" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="modal-card bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative text-center">
+            <button onclick="closeModal('modal-qr')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <h3 class="text-base font-bold text-white mb-1">Quét mã QR tại bàn</h3>
+            <p class="text-xs text-slate-400 mb-4">Hướng camera điện thoại vào mã QR dán ở góc bàn</p>
+
+            <!-- Scanner Viewport Graphic -->
+            <div class="w-56 h-56 mx-auto bg-slate-950 border-2 border-dashed border-teal-500 rounded-2xl relative flex items-center justify-center overflow-hidden mb-4 shadow-inner">
+                <div class="radar-sweep"></div>
+                <!-- Simulated QR Graphic -->
+                <div class="p-3 bg-white rounded-xl shadow-md">
+                    <svg class="w-28 h-28 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2 2h8v8H2V2zm2 2v4h4V4H4zm10-2h8v8h-8V2zm2 2v4h4V4h-4zM2 14h8v8H2v-8zm2 2v4h4v-4H4zm14-2h4v2h-4v-2zm-4 0h2v4h-2v-4zm2 4h2v4h-2v-4zm2 2h2v2h-2v-2zm-4 2h2v2h-2v-2zM6 6h0m0 12h0m12-12h0"/>
+                    </svg>
+                </div>
+            </div>
+
+            <p class="text-xs text-teal-300 font-semibold mb-4">Đã tìm thấy mã: <span id="qr-target-label" class="text-white">Bàn Tự Học Q-04</span></p>
+
+            <button onclick="simulateSuccessfulQRScan()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-teal-900/40 transition">
+                ⚡ Quét & Check-in Ngay
+            </button>
+        </div>
+    </div>
+
+    <!-- AUTH MODAL: LOGIN / REGISTER / SWITCH ACCOUNT -->
+    <div id="modal-auth" class="modal-overlay fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="modal-card bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl relative text-left">
+            <button onclick="closeModal('modal-auth')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <!-- Brand Header -->
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#003B5C] to-[#0a9396] flex items-center justify-center text-white font-bold text-sm">
+                    UEH
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white">Cổng Xác Thực smart-space.pages.ueh</h3>
+                    <p class="text-xs text-slate-400">Đăng nhập tài khoản Sinh viên / Quản trị viên</p>
+                </div>
+            </div>
+
+            <!-- Auth Tabs -->
+            <div class="flex border-b border-slate-800 mb-4 text-xs font-semibold">
+                <button onclick="switchAuthTab('login')" id="auth-tab-login" class="flex-1 py-2 text-center border-b-2 border-teal-500 text-teal-400">Đăng nhập</button>
+                <button onclick="switchAuthTab('register')" id="auth-tab-register" class="flex-1 py-2 text-center border-b-2 border-transparent text-slate-400 hover:text-white">Đăng ký mới</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="form-login" onsubmit="handleLoginSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Mã số sinh viên (MSSV) hoặc Email UEH</label>
+                    <input id="login-email" type="text" required value="31211025889" placeholder="31211025889 hoặc admin@ueh.edu.vn" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Mật khẩu</label>
+                    <input id="login-password" type="password" required value="ueh123456" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500">
+                </div>
+
+                <button type="submit" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">
+                    Đăng nhập hệ thống
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="form-register" onsubmit="handleRegisterSubmit(event)" class="space-y-3 hidden">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Mã số sinh viên (MSSV)</label>
+                    <input id="reg-id" type="text" required placeholder="31221029999" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Họ và Tên</label>
+                    <input id="reg-name" type="text" required placeholder="Trần Thị C" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Email sinh viên (@st.ueh.edu.vn)</label>
+                    <input id="reg-email" type="email" required placeholder="c.3122102@st.ueh.edu.vn" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Khoa / Viện đào tạo</label>
+                    <input id="reg-faculty" type="text" required placeholder="Công nghệ thông tin kinh doanh" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500">
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">
+                    Hoàn tất Đăng ký
+                </button>
+            </form>
+
+            <!-- Quick Demo Switcher -->
+            <div class="mt-4 pt-3 border-t border-slate-800">
+                <p class="text-[10px] text-slate-400 font-semibold mb-2 uppercase tracking-wider">Đăng nhập nhanh (Tài khoản mẫu):</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="quickLogin('student')" class="bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 p-2 rounded-xl text-left text-xs transition">
+                        <span class="block font-bold">🎓 Sinh Viên UEH</span>
+                        <span class="text-[10px] text-slate-400">Nguyen Van B (SV-01)</span>
+                    </button>
+                    <button onclick="quickLogin('admin')" class="bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 p-2 rounded-xl text-left text-xs transition">
+                        <span class="block font-bold">🛡️ Ban Quản Lý (Admin)</span>
+                        <span class="text-[10px] text-slate-400">ThS. Đỗ Văn Nam</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GLOBAL TOAST NOTIFICATION -->
+    <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white border border-teal-500/60 text-xs font-semibold px-4 py-2.5 rounded-2xl opacity-0 pointer-events-none transition-all duration-300 z-50 shadow-2xl flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+        <span id="toast-text">Thông báo</span>
+    </div>
+
+    <!-- ==================== JAVASCRIPT APPLICATION CORE ==================== -->
+    <script>
+        /**
+         * SMART-SPACE UEH CORE ENGINE
+         * Concept: Camera AI Skeletal Tracking Digital Twin & Space Management
+         * Campus: Nguyen Tri Phuong (Level 6 - B1.603)
+         */
+
+        // 1. GLOBAL STATE MANAGEMENT
+        const State = {
+            currentUser: {
+                id: '31211025889',
+                name: 'Nguyễn Văn B',
+                role: 'student', // 'student' | 'admin'
+                email: 'b.31211025889@st.ueh.edu.vn',
+                faculty: 'Công nghệ thông tin kinh doanh'
+            },
+            view: 'mobile', // 'split' | 'mobile' | 'twin' | 'admin'
+            adminTab: 'stats', // 'stats' | 'seats' | 'logs' | 'config'
+            aiEnabled: true,
+            audioEnabled: true,
+            activeFilter: 'all',
+            selectedSeat: null,
+            myReservation: null, // { seatId, timer, remainingSeconds }
+            stats: {
+                totalVisitsToday: 1284,
+                averageReleaseTimeMinutes: 12.4
+            }
+        };
+
+        // 2. SEAT DATABASE (32 Seats in Level 6 Architectural Plan)
+        // 3D coordinates (X: -20 to 20, Z: -14 to 14) map to 2D percentages (X: 0-100%, Y: 0-100%)
+        const SEATS = [
+            // --- Meeting Room (Purple Floor, Round Conference Table) ---
+            { id: 'M-01', zone: 'Meeting Room', type: 'Ghế xoay da', power: true, noiseDb: 48, x: -14.5, z: -3.8, mapX: 18, mapY: 34, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'M-02', zone: 'Meeting Room', type: 'Ghế xoay da', power: true, noiseDb: 48, x: -11.5, z: -3.8, mapX: 25, mapY: 34, status: 'occupied', mesh: null, uiEl: null, user: 'SV-04 [Họp nhóm]', duration: 42 },
+            { id: 'M-03', zone: 'Meeting Room', type: 'Ghế xoay da', power: true, noiseDb: 48, x: -10.0, z: -2.0, mapX: 30, mapY: 40, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'M-04', zone: 'Meeting Room', type: 'Ghế xoay da', power: true, noiseDb: 48, x: -11.5, z: -0.2, mapX: 25, mapY: 46, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'M-05', zone: 'Meeting Room', type: 'Ghế xoay da', power: true, noiseDb: 48, x: -14.5, z: -0.2, mapX: 18, mapY: 46, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'M-06', zone: 'Meeting Room', type: 'Ghế xoay da', power: true, noiseDb: 48, x: -16.0, z: -2.0, mapX: 12, mapY: 40, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+
+            // --- Conversational Sofa (Green Floor) ---
+            { id: 'S-01', zone: 'Conversational Sofa', type: 'Sofa băng', power: false, noiseDb: 52, x: -15.5, z: 4.0, mapX: 15, mapY: 58, status: 'occupied', mesh: null, uiEl: null, user: 'SV-11 [Thảo luận Sofa]', duration: 28 },
+            { id: 'S-02', zone: 'Conversational Sofa', type: 'Sofa băng', power: false, noiseDb: 52, x: -15.5, z: 6.0, mapX: 15, mapY: 66, status: 'warning', mesh: null, uiEl: null, user: 'Balo không người (>5p)', duration: 16 },
+            { id: 'S-03', zone: 'Conversational Sofa', type: 'Sofa băng', power: false, noiseDb: 52, x: -8.5, z: 4.0, mapX: 32, mapY: 58, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'S-04', zone: 'Conversational Sofa', type: 'Sofa băng', power: false, noiseDb: 52, x: -8.5, z: 6.0, mapX: 32, mapY: 66, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+
+            // --- Mini Auditorium & Reading (Yellow Floor, Stepped Tribune) ---
+            { id: 'A-01', zone: 'Mini Auditorium', type: 'Bậc đệm nệm', power: false, noiseDb: 42, x: -14.0, z: 9.5, mapX: 16, mapY: 82, status: 'occupied', mesh: null, uiEl: null, user: 'SV-19 [Đọc sách]', duration: 55 },
+            { id: 'A-02', zone: 'Mini Auditorium', type: 'Bậc đệm nệm', power: false, noiseDb: 42, x: -10.0, z: 9.5, mapX: 26, mapY: 82, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'A-03', zone: 'Mini Auditorium', type: 'Bậc đệm nệm', power: false, noiseDb: 42, x: -6.0, z: 9.5, mapX: 36, mapY: 82, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'A-04', zone: 'Mini Auditorium', type: 'Bậc đệm nệm', power: false, noiseDb: 42, x: -14.0, z: 11.5, mapX: 16, mapY: 89, status: 'occupied', mesh: null, uiEl: null, user: 'SV-20 [Đọc sách]', duration: 32 },
+            { id: 'A-05', zone: 'Mini Auditorium', type: 'Bậc đệm nệm', power: false, noiseDb: 42, x: -10.0, z: 11.5, mapX: 26, mapY: 89, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'A-06', zone: 'Mini Auditorium', type: 'Bậc đệm nệm', power: false, noiseDb: 42, x: -6.0, z: 11.5, mapX: 36, mapY: 89, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+
+            // --- Quiet Study Table 1 (Blue Floor, Table Bắc) ---
+            { id: 'Q-01', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 2.0, z: 2.2, mapX: 52, mapY: 42, status: 'occupied', mesh: null, uiEl: null, user: 'SV-02 [Quiet Study]', duration: 75 },
+            { id: 'Q-02', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 6.0, z: 2.2, mapX: 63, mapY: 42, status: 'occupied', mesh: null, uiEl: null, user: 'SV-03 [Quiet Study]', duration: 60 },
+            { id: 'Q-03', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 10.0, z: 2.2, mapX: 74, mapY: 42, status: 'occupied', mesh: null, uiEl: null, user: 'SV-08 [Laptop]', duration: 110 },
+            { id: 'Q-04', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 14.0, z: 2.2, mapX: 85, mapY: 42, status: 'reserved', mesh: null, uiEl: null, user: 'SV-01 (Giữ chỗ 15p)', duration: 3 },
+            
+            { id: 'Q-05', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 2.0, z: 4.8, mapX: 52, mapY: 53, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'Q-06', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 6.0, z: 4.8, mapX: 63, mapY: 53, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'Q-07', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 10.0, z: 4.8, mapX: 74, mapY: 53, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'Q-08', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 34, x: 14.0, z: 4.8, mapX: 85, mapY: 53, status: 'occupied', mesh: null, uiEl: null, user: 'SV-15 [Ôn thi]', duration: 88 },
+
+            // --- Quiet Study Table 2 (Blue Floor, Table Nam) ---
+            { id: 'Q-09', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 2.0, z: 8.0, mapX: 52, mapY: 72, status: 'occupied', mesh: null, uiEl: null, user: 'SV-07 [Quiet Study]', duration: 94 },
+            { id: 'Q-10', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 6.0, z: 8.0, mapX: 63, mapY: 72, status: 'occupied', mesh: null, uiEl: null, user: 'SV-09 [Quiet Study]', duration: 40 },
+            { id: 'Q-11', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 10.0, z: 8.0, mapX: 74, mapY: 72, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'Q-12', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 14.0, z: 8.0, mapX: 85, mapY: 72, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+
+            { id: 'Q-13', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 2.0, z: 10.6, mapX: 52, mapY: 84, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'Q-14', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 6.0, z: 10.6, mapX: 63, mapY: 84, status: 'occupied', mesh: null, uiEl: null, user: 'SV-16 [Tự học]', duration: 30 },
+            { id: 'Q-15', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 10.0, z: 10.6, mapX: 74, mapY: 84, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 },
+            { id: 'Q-16', zone: 'Quiet Study', type: 'Ghế công thái học', power: true, noiseDb: 32, x: 14.0, z: 10.6, mapX: 85, mapY: 84, status: 'vacant', mesh: null, uiEl: null, user: null, duration: 0 }
+        ];
+
+        // 3. USAGE SESSIONS LOG DATABASE (For Admin Dashboard)
+        const USAGE_SESSIONS = [
+            { id: 'SS-9041', studentId: '31211025889', name: 'Nguyễn Văn B', seatId: 'Q-04', checkIn: '09:20:14', checkOut: '—', duration: '21 phút', method: 'App Giữ chỗ (15p)', status: 'Đang giữ chỗ' },
+            { id: 'SS-9040', studentId: '31211024312', name: 'Lê Hoàng Long', seatId: 'Q-03', checkIn: '08:45:00', checkOut: '—', duration: '56 phút', method: 'QR Check-in', status: 'Đang ngồi' },
+            { id: 'SS-9039', studentId: '31211021190', name: 'Phạm Minh Châu', seatId: 'M-02', checkIn: '08:30:22', checkOut: '—', duration: '71 phút', method: 'QR Check-in', status: 'Đang ngồi' },
+            { id: 'SS-9038', studentId: '31211029871', name: 'Hoàng Quốc Tuấn', seatId: 'S-01', checkIn: '08:50:11', checkOut: '—', duration: '51 phút', method: 'AI Tự nhận diện', status: 'Đang ngồi' },
+            { id: 'SS-9037', studentId: '31201026645', name: 'Vũ Đức Thịnh', seatId: 'S-02', checkIn: '09:05:00', checkOut: '—', duration: '36 phút', method: 'QR Check-in', status: 'Balo không người (>5p)' },
+            { id: 'SS-9036', studentId: '31211027781', name: 'Đỗ Thảo Vy', seatId: 'Q-01', checkIn: '08:10:04', checkOut: '—', duration: '91 phút', method: 'QR Check-in', status: 'Đang ngồi' },
+            { id: 'SS-9035', studentId: '31211023456', name: 'Nguyễn Thanh Tùng', seatId: 'Q-06', checkIn: '07:35:10', checkOut: '09:12:40', duration: '97 phút', method: 'QR Check-in', status: 'Hoàn thành' },
+            { id: 'SS-9034', studentId: '31201029988', name: 'Bùi Lan Anh', seatId: 'A-01', checkIn: '08:25:30', checkOut: '—', duration: '76 phút', method: 'AI Tự nhận diện', status: 'Đang ngồi' },
+            { id: 'SS-9033', studentId: '31211020044', name: 'Vương Bảo Trâm', seatId: 'Q-08', checkIn: '07:15:00', checkOut: '08:45:00', duration: '90 phút', method: 'AI Tự nhận diện', status: 'Tự giải phóng (Cam AI)' }
+        ];
+
+        // 4. THREE.JS 3D SCENE & ENGINE
+        let scene, camera, renderer, controls;
+        const labelsContainer = document.getElementById('labels-container');
+        const canvasContainer = document.getElementById('canvas-container');
+        const characters = [];
+        let playerCharacter = null;
+        let animatedElements = [];
+        let backpackMesh = null;
+
+        // Camera Targets for Smooth Transitions
+        const CAMERA_VIEWS = {
+            overview: { pos: new THREE.Vector3(26, 32, 34), target: new THREE.Vector3(0, 0, 0) },
+            entrance: { pos: new THREE.Vector3(4, 14, -18), target: new THREE.Vector3(2, 1, -8) },
+            quiet: { pos: new THREE.Vector3(18, 16, 18), target: new THREE.Vector3(8, 0, 6) },
+            sofa: { pos: new THREE.Vector3(-12, 12, 16), target: new THREE.Vector3(-12, 0, 5) },
+            auditorium: { pos: new THREE.Vector3(-10, 14, 24), target: new THREE.Vector3(-10, 0, 10) },
+            meeting: { pos: new THREE.Vector3(-13, 12, 6), target: new THREE.Vector3(-13, 0, -2) },
+            cctv1: { pos: new THREE.Vector3(-4, 12, -13), target: new THREE.Vector3(4, 0, -4) },
+            cctv2: { pos: new THREE.Vector3(18, 14, -2), target: new THREE.Vector3(8, 0, 8) }
+        };
+
+        // --- MATERIALS PALETTE (Architectural & Theme Specific) ---
+        const mats = {
+            floorPurple: new THREE.MeshStandardMaterial({ color: 0xa855f7, roughness: 0.4 }), // Meeting Room
+            floorGreen: new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.4 }),  // Conversational Sofa
+            floorYellow: new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 }), // Mini Auditorium
+            floorBlue: new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.4 }),   // Quiet Study
+            floorPink: new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.4 }),   // Sảnh Ask Us Now & Entrance
+            floorGrey: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5 }),   // Elevator / Stairs
+            wallWhite: new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2 }),
+            wallGlass: new THREE.MeshStandardMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.35, roughness: 0.1 }),
+            woodOrange: new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.3 }),
+            tableWhite: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }),
+            darkTrim: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 }),
+            laptopGrey: new THREE.MeshStandardMaterial({ color: 0x0f172a }),
+            laptopScreen: new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+            seatVacant: new THREE.MeshStandardMaterial({ color: 0x10b981 }), // Green
+            seatOccupied: new THREE.MeshStandardMaterial({ color: 0xef4444 }), // Red
+            seatReserved: new THREE.MeshStandardMaterial({ color: 0xf59e0b }), // Yellow
+            seatWarning: new THREE.MeshStandardMaterial({ color: 0xf97316 }), // Orange
+            boundingWire: new THREE.LineBasicMaterial({ color: 0x00ffcc, linewidth: 2 }),
+            skeletalBone: new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 3 }),
+            skeletalJoint: new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+        };
+
+        function init3DScene() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x090d16);
+
+            // Safe Dimensions Calculation
+            const rect = canvasContainer.getBoundingClientRect();
+            const initW = rect.width > 0 ? rect.width : (canvasContainer.clientWidth > 0 ? canvasContainer.clientWidth : Math.floor(window.innerWidth * 0.64));
+            const initH = rect.height > 0 ? rect.height : (canvasContainer.clientHeight > 0 ? canvasContainer.clientHeight : (window.innerHeight - 56));
+            const aspect = initW / Math.max(initH, 1);
+
+            // Camera Setup (Perspective matching isometric rendering)
+            camera = new THREE.PerspectiveCamera(42, aspect, 0.1, 200);
+            camera.position.set(26, 32, 34);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+            renderer.setSize(initW, initH);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            canvasContainer.appendChild(renderer.domElement);
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.05; // Do not go below floor
+            controls.minDistance = 8;
+            controls.maxDistance = 80;
+            controls.target.set(0, 0, 0);
+
+            // Lighting Setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfffbeb, 0.85);
+            sunLight.position.set(20, 35, 18);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.bias = -0.0005;
+            scene.add(sunLight);
+
+            const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.35);
+            fillLight.position.set(-20, 20, -20);
+            scene.add(fillLight);
+
+            // Ground Floor Grid Helper
+            const grid = new THREE.GridHelper(48, 48, 0x1e293b, 0x0f172a);
+            grid.position.y = -0.05;
+            scene.add(grid);
+
+            // Build Architectural Environment
+            buildArchitecturalFloor();
+
+            // Populate Seats
+            buildSeats3D();
+
+            // Spawn Initial Characters (Player, Staff, NPCs)
+            initCharacters();
+
+            // Resize Listener
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // --- BUILD ARCHITECTURAL FLOOR (Accurate to NTP Level 6) ---
+        function buildArchitecturalFloor() {
+            const addBox = (w, h, d, mat, x, y, z, receiveShadow = true, castShadow = true) => {
+                const geo = new THREE.BoxGeometry(w, h, d);
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, y, z);
+                mesh.receiveShadow = receiveShadow;
+                mesh.castShadow = castShadow;
+                scene.add(mesh);
+                return mesh;
+            };
+
+            // 1. ZONED FLOOR SLABS (Width 40, Depth 28)
+            // Meeting Room (Top Left, X: -20 to -6, Z: -7 to 2)
+            addBox(14, 0.1, 9, mats.floorPurple, -13, 0, -2.5);
+            // Conversational Sofa (Center Left, X: -20 to -6, Z: 2 to 8)
+            addBox(14, 0.1, 6, mats.floorGreen, -13, 0, 5);
+            // Mini Auditorium (Bottom Left, X: -20 to -6, Z: 8 to 14)
+            addBox(14, 0.1, 6, mats.floorYellow, -13, 0, 11);
+            // Elevator & Stairs & Toilet (Top Far Left, X: -20 to -6, Z: -14 to -7)
+            addBox(14, 0.1, 7, mats.floorGrey, -13, 0, -10.5);
+            // Entrance Strip & Ask-Us-Now (Top Right, X: -6 to 20, Z: -14 to -7)
+            addBox(26, 0.1, 7, mats.floorPink, 7, 0, -10.5);
+            // Quiet Study (Main Right Area, X: -6 to 20, Z: -7 to 14)
+            addBox(26, 0.1, 21, mats.floorBlue, 7, 0, 3.5);
+
+            // 2. PERIMETER WALLS (White Boundaries with Open Front Perspective)
+            addBox(40.4, 3.0, 0.4, mats.wallWhite, 0, 1.5, -14.2); // North Back Wall
+            addBox(0.4, 3.0, 28.4, mats.wallWhite, -20.2, 1.5, 0); // West Side Wall
+            addBox(0.4, 3.0, 28.4, mats.wallWhite, 20.2, 1.5, 0);  // East Side Wall
+            addBox(40.4, 0.5, 0.4, mats.darkTrim, 0, 0.25, 14.2);  // South Low Sill (Cutaway for view)
+
+            // 3. ELEVATOR, STAIRS & TOILET BLOCKS (Enclosed Volumes)
+            addBox(6, 4.0, 6, mats.floorGrey, -16.5, 2.0, -10.5); // Toilet block
+            addBox(7, 4.0, 6, mats.floorGrey, -9.5, 2.0, -10.5);  // Elevator & Stairs shaft
+            // Elevator Doors (Dark Trim Accents)
+            addBox(2.2, 2.6, 0.1, mats.darkTrim, -8.5, 1.3, -7.4);
+
+            // 4. MAIN ENTRANCE SECURITY PORTAL (AI Turnstile)
+            const gateL = addBox(0.6, 3.2, 0.6, mats.darkTrim, -1.8, 1.6, -7.5);
+            const gateR = addBox(0.6, 3.2, 0.6, mats.darkTrim, 1.8, 1.6, -7.5);
+            const gateTop = addBox(4.2, 0.6, 0.6, mats.darkTrim, 0, 3.2, -7.5);
+
+            // 5. ASK-US-NOW RECEPTION COUNTER
+            addBox(7.5, 1.3, 1.8, mats.tableWhite, 7.0, 0.65, -8.5);
+            addBox(7.7, 0.1, 2.0, mats.woodOrange, 7.0, 1.35, -8.5); // Countertop
+
+            // 6. MEETING ROOM GLASS WALLS & FURNITURE
+            addBox(14, 3.0, 0.15, mats.wallGlass, -13, 1.5, -7.0); // Divider North
+            addBox(0.15, 3.0, 9.0, mats.wallGlass, -6.0, 1.5, -2.5); // Divider East
+            // Round Conference Table (Cylinder)
+            const tableGeo = new THREE.CylinderGeometry(2.6, 2.6, 0.8, 32);
+            const roundTable = new THREE.Mesh(tableGeo, mats.woodOrange);
+            roundTable.position.set(-13, 0.4, -2.5);
+            roundTable.castShadow = true;
+            roundTable.receiveShadow = true;
+            scene.add(roundTable);
+
+            // 7. CONVERSATIONAL SOFA FURNITURE
+            // 2 Dark Green Couches facing each other
+            addBox(2.2, 1.1, 5.0, mats.floorGreen, -16.5, 0.55, 5.0); // Sofa 1
+            addBox(2.2, 1.1, 5.0, mats.floorGreen, -7.5, 0.55, 5.0);  // Sofa 2
+            // 2 Low Coffee Tables
+            addBox(2.4, 0.4, 1.8, mats.tableWhite, -12.0, 0.2, 4.0);
+            addBox(2.4, 0.4, 1.8, mats.tableWhite, -12.0, 0.2, 6.0);
+
+            // 8. MINI AUDITORIUM & READING STEPPED TRIBUNE (3 Tiers)
+            addBox(13.6, 0.5, 2.0, mats.woodOrange, -13.0, 0.25, 9.5);  // Step 1
+            addBox(13.6, 1.0, 2.0, mats.woodOrange, -13.0, 0.50, 11.5); // Step 2
+            addBox(13.6, 1.5, 2.0, mats.woodOrange, -13.0, 0.75, 13.5); // Step 3
+            // Decorative Vertical Louvers along back
+            for(let i = -19; i <= -7; i += 1.5) {
+                addBox(0.3, 3.0, 0.3, mats.woodOrange, i, 1.5, 13.9);
+            }
+
+            // 9. QUIET STUDY LONG TABLES (Two Big White Desks with Power Sockets)
+            // Table 1 (North)
+            addBox(15.0, 0.9, 2.0, mats.tableWhite, 8.0, 0.45, 3.5);
+            addBox(15.0, 0.25, 0.15, mats.darkTrim, 8.0, 1.0, 3.5); // Power socket channel
+            // Table 2 (South)
+            addBox(15.0, 0.9, 2.0, mats.tableWhite, 8.0, 0.45, 9.3);
+            addBox(15.0, 0.25, 0.15, mats.darkTrim, 8.0, 1.0, 9.3); // Power socket channel
+
+            // Decorative laptops on desks
+            addLaptop(2.0, 0.95, 3.0, 0);
+            addLaptop(6.0, 0.95, 3.0, 0);
+            addLaptop(10.0, 0.95, 3.0, 0);
+            addLaptop(14.0, 0.95, 4.0, Math.PI);
+            addLaptop(6.0, 0.95, 8.8, 0);
+            addLaptop(10.0, 0.95, 9.8, Math.PI);
+            addLaptop(-13.0, 0.85, -2.5, Math.PI/4); // Laptop in meeting room
+        }
+
+        function addLaptop(x, y, z, rotationY = 0) {
+            const group = new THREE.Group();
+            group.position.set(x, y, z);
+            group.rotation.y = rotationY;
+
+            // Laptop base
+            const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.04, 0.5), mats.laptopGrey);
+            group.add(base);
+
+            // Laptop screen
+            const screen = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.03), mats.laptopScreen);
+            screen.position.set(0, 0.25, -0.25);
+            screen.rotation.x = -0.2;
+            group.add(screen);
+
+            scene.add(group);
+        }
+
+        // --- 3D SEATS & PROJECTION ENGINE ---
+        function buildSeats3D() {
+            SEATS.forEach(seat => {
+                const group = new THREE.Group();
+                group.position.set(seat.x, 0.2, seat.z);
+
+                // Seat Cushion Mesh
+                const geo = new THREE.BoxGeometry(0.8, 0.35, 0.8);
+                let mat = mats.seatVacant;
+                if (seat.status === 'occupied') mat = mats.seatOccupied;
+                else if (seat.status === 'reserved') mat = mats.seatReserved;
+                else if (seat.status === 'warning') mat = mats.seatWarning;
+
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.castShadow = true;
+                group.add(mesh);
+
+                // Reserved Rotating Torus Indicator
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.08, 8, 24), mats.seatReserved);
+                ring.rotation.x = -Math.PI / 2;
+                ring.position.y = -0.15;
+                ring.visible = (seat.status === 'reserved');
+                group.add(ring);
+
+                scene.add(group);
+                seat.meshGroup = group;
+                seat.mesh = mesh;
+                seat.ring = ring;
+
+                // If seat has a warning backpack on it
+                if (seat.status === 'warning') {
+                    spawnBackpackMesh(seat.x, seat.z);
+                }
+            });
+        }
+
+        function spawnBackpackMesh(x, z) {
+            if (backpackMesh) scene.remove(backpackMesh);
+
+            const group = new THREE.Group();
+            group.position.set(x, 0.55, z);
+
+            // Backpack body
+            const bag = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.4), mats.woodOrange);
+            bag.castShadow = true;
+            group.add(bag);
+
+            // Warning wireframe box
+            const boxGeo = new THREE.BoxGeometry(0.9, 0.8, 0.8);
+            const wire = new THREE.LineSegments(
+                new THREE.EdgesGeometry(boxGeo),
+                new THREE.LineBasicMaterial({ color: 0xf97316, linewidth: 2 })
+            );
+            group.add(wire);
+
+            scene.add(group);
+            backpackMesh = group;
+        }
+
+        // --- 3D HUMAN CHARACTERS & AI SKELETON VISUALIZER ---
+        function createCharacterVoxel(id, roleLabel, colorHex, isPlayer = false, initialPos = { x: 0, z: 0 }, isSitting = true) {
+            const group = new THREE.Group();
+            group.position.set(initialPos.x, isSitting ? 0.6 : 0.85, initialPos.z);
+
+            const charMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 });
+
+            // Torso (Body)
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.4), charMat);
+            torso.position.y = 0.35;
+            torso.castShadow = true;
+            group.add(torso);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), new THREE.MeshStandardMaterial({ color: 0xfde047 }));
+            head.position.y = 0.9;
+            head.castShadow = true;
+            group.add(head);
+
+            // Arms
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), charMat);
+            armL.position.set(-0.4, 0.35, isSitting ? 0.15 : 0);
+            if (isSitting) armL.rotation.x = -0.5;
+            group.add(armL);
+
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), charMat);
+            armR.position.set(0.4, 0.35, isSitting ? 0.15 : 0);
+            if (isSitting) armR.rotation.x = -0.5;
+            group.add(armR);
+
+            // AI Bounding Box (Cyan / Lime Wireframe)
+            const bboxGeo = new THREE.BoxGeometry(1.0, 1.6, 0.9);
+            const bboxWire = new THREE.LineSegments(
+                new THREE.EdgesGeometry(bboxGeo),
+                new THREE.LineBasicMaterial({ color: isPlayer ? 0x06b6d4 : 0x10b981, linewidth: 2 })
+            );
+            bboxWire.position.y = 0.7;
+            group.add(bboxWire);
+
+            // AI Skeletal Joints & Bones (Keypoint simulation)
+            const skeletalGroup = new THREE.Group();
+            const jointGeo = new THREE.SphereGeometry(0.05, 8, 8);
+            
+            // Keypoint positions relative to character
+            const kHead = new THREE.Vector3(0, 0.9, 0);
+            const kNeck = new THREE.Vector3(0, 0.7, 0);
+            const kShL = new THREE.Vector3(-0.35, 0.65, 0);
+            const kShR = new THREE.Vector3(0.35, 0.65, 0);
+            const kPelvis = new THREE.Vector3(0, 0.05, 0);
+
+            [kHead, kNeck, kShL, kShR, kPelvis].forEach(pos => {
+                const j = new THREE.Mesh(jointGeo, mats.skeletalJoint);
+                j.position.copy(pos);
+                skeletalGroup.add(j);
+            });
+
+            // Connect bones with lines
+            const addBone = (p1, p2) => {
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+                const line = new THREE.Line(lineGeo, mats.skeletalBone);
+                skeletalGroup.add(line);
+            };
+            addBone(kHead, kNeck);
+            addBone(kNeck, kShL);
+            addBone(kNeck, kShR);
+            addBone(kNeck, kPelvis);
+
+            group.add(skeletalGroup);
+
+            scene.add(group);
+
+            // HTML Floating HUD Label
+            const labelEl = document.createElement('div');
+            labelEl.className = `ai-label ${isPlayer ? 'border-cyan-400' : ''}`;
+            labelEl.innerText = `${id} · ${roleLabel}`;
+            labelsContainer.appendChild(labelEl);
+
+            const charObj = {
+                id,
+                roleLabel,
+                group,
+                labelEl,
+                bboxWire,
+                skeletalGroup,
+                isPlayer,
+                isSitting,
+                targetX: initialPos.x,
+                targetZ: initialPos.z,
+                state: isSitting ? 'sitting' : 'walking',
+                assignedSeat: null
+            };
+
+            characters.push(charObj);
+            return charObj;
+        }
+
+        // Remove 3D Character Model and its HUD label cleanly from the scene
+        function removeCharacter(charObj) {
+            if (!charObj) return;
+            if (charObj.group) {
+                charObj.group.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+                scene.remove(charObj.group);
+            }
+            if (charObj.labelEl && charObj.labelEl.parentNode) {
+                charObj.labelEl.parentNode.removeChild(charObj.labelEl);
+            }
+            const idx = characters.indexOf(charObj);
+            if (idx !== -1) {
+                characters.splice(idx, 1);
+            }
+        }
+
+        // Bind a 3D character to a seat object for synchronized release
+        function bindSeatCharacter(seatId, charObj) {
+            const seat = SEATS.find(s => s.id === seatId);
+            if (seat && charObj) {
+                seat.character = charObj;
+                charObj.assignedSeat = seat.id;
+            }
+        }
+
+        function initCharacters() {
+            // 1. Staff at Ask-Us-Now counter (Library Staff, always on duty)
+            createCharacterVoxel('STAFF-01', 'Trực quầy Ask-Us-Now', 0xf43f5e, false, { x: 7.0, z: -9.5 }, true);
+
+            // 2. Student at Reception Desk asking question
+            createCharacterVoxel('SV-13', '[Mượn sách] Hỏi thủ thư', 0x3b82f6, false, { x: 7.0, z: -7.0 }, false);
+
+            // 3. Player Character: YOU (SV-01) at Entrance
+            playerCharacter = createCharacterVoxel('YOU (SV-01)', '[Sảnh vào] Đang di chuyển', 0x06b6d4, true, { x: 0.0, z: -7.2 }, false);
+
+            // 4. Students in Meeting Room & Sofa
+            bindSeatCharacter('M-02', createCharacterVoxel('SV-04', '[Họp nhóm]', 0xa855f7, false, { x: -11.5, z: -3.8 }, true));
+            bindSeatCharacter('S-01', createCharacterVoxel('SV-11', '[Thảo luận Sofa]', 0x22c55e, false, { x: -15.5, z: 4.0 }, true));
+
+            // 5. Students in Mini Auditorium
+            bindSeatCharacter('A-01', createCharacterVoxel('SV-19', '[Đọc sách]', 0xeab308, false, { x: -14.0, z: 9.5 }, true));
+            bindSeatCharacter('A-04', createCharacterVoxel('SV-20', '[Đọc sách]', 0xeab308, false, { x: -14.0, z: 11.5 }, true));
+
+            // 6. Students in Quiet Study
+            bindSeatCharacter('Q-01', createCharacterVoxel('SV-02', '[Quiet Study]', 0x0284c7, false, { x: 2.0, z: 2.2 }, true));
+            bindSeatCharacter('Q-02', createCharacterVoxel('SV-03', '[Quiet Study]', 0x0284c7, false, { x: 6.0, z: 2.2 }, true));
+            bindSeatCharacter('Q-03', createCharacterVoxel('SV-08', '[Laptop]', 0x0284c7, false, { x: 10.0, z: 2.2 }, true));
+            bindSeatCharacter('Q-08', createCharacterVoxel('SV-15', '[Ôn thi]', 0x0284c7, false, { x: 14.0, z: 4.8 }, true));
+            bindSeatCharacter('Q-09', createCharacterVoxel('SV-07', '[Quiet Study]', 0x0284c7, false, { x: 2.0, z: 8.0 }, true));
+            bindSeatCharacter('Q-10', createCharacterVoxel('SV-09', '[Quiet Study]', 0x0284c7, false, { x: 6.0, z: 8.0 }, true));
+            bindSeatCharacter('Q-14', createCharacterVoxel('SV-16', '[Tự học]', 0x0284c7, false, { x: 6.0, z: 10.6 }, true));
+        }
+
+        // --- 5. SYNCHRONIZED APP 2D MAP INITIALIZATION ---
+        function initApp2DMap() {
+            const container2d = document.getElementById('seats-container-2d');
+            container2d.innerHTML = '';
+
+            SEATS.forEach(seat => {
+                const el = document.createElement('div');
+                el.className = `seat-2d ${seat.status}`;
+                el.style.left = `${seat.mapX}%`;
+                el.style.top = `${seat.mapY}%`;
+                el.title = `${seat.id} (${seat.zone}) - ${seat.status}`;
+                
+                el.onclick = () => onSelectSeat2D(seat);
+                container2d.appendChild(el);
+                seat.uiEl = el;
+            });
+
+            updateKPIs();
+        }
+
+        // Filter Function for App
+        function applyFilter(type) {
+            State.activeFilter = type;
+            document.querySelectorAll('.app-filter-chip').forEach(btn => {
+                btn.className = 'app-filter-chip bg-slate-800 text-teal-300 border border-slate-700 px-2.5 py-1 rounded-full font-medium whitespace-nowrap';
+            });
+            const activeBtn = document.getElementById(`flt-${type}`);
+            if (activeBtn) activeBtn.className = 'app-filter-chip bg-teal-600 text-white px-2.5 py-1 rounded-full font-semibold whitespace-nowrap shadow-sm';
+
+            SEATS.forEach(seat => {
+                let show = true;
+                if (type === 'power' && !seat.power) show = false;
+                if (type === 'quiet' && seat.zone !== 'Quiet Study') show = false;
+                if (type === 'vacant' && seat.status !== 'vacant') show = false;
+
+                if (seat.uiEl) {
+                    seat.uiEl.style.opacity = show ? '1' : '0.15';
+                    seat.uiEl.style.pointerEvents = show ? 'auto' : 'none';
+                }
+            });
+            showToast(`Bộ lọc: ${type === 'all' ? 'Tất cả ghế' : type}`);
+        }
+
+        // Handle Seat Click on App Map
+        function onSelectSeat2D(seat) {
+            State.selectedSeat = seat;
+
+            if (seat.status === 'vacant') {
+                document.getElementById('modal-seat-title').innerText = `Ghế ${seat.id} · Khu ${seat.zone}`;
+                document.getElementById('modal-seat-features').innerText = `${seat.power ? '⚡ Có ổ cắm điện' : 'Không có ổ cắm'} · 🤫 ${seat.noiseDb} dB`;
+                document.getElementById('qr-target-label').innerText = `${seat.id} (${seat.zone})`;
+                openModal('modal-reserve');
+            } else if (seat.status === 'reserved') {
+                if (State.myReservation && State.myReservation.seatId === seat.id) {
+                    openModal('modal-qr');
+                } else {
+                    showToast(`Ghế ${seat.id} đang được sinh viên khác giữ chỗ ngắn hạn.`);
+                }
+            } else if (seat.status === 'occupied') {
+                showToast(`Ghế ${seat.id} đang có người ngồi học (${seat.user || 'AI Skeletal detected'}).`);
+            } else if (seat.status === 'warning') {
+                showToast(`CẢNH BÁO: Ghế ${seat.id} có balo xí chỗ quá 5 phút không có người.`);
+            }
+        }
+
+        // Confirm Reservation (Step 3 Workflow - 15min countdown)
+        function confirmSeatReservation() {
+            if (!State.selectedSeat) return;
+            const seat = State.selectedSeat;
+
+            seat.status = 'reserved';
+            seat.user = `${State.currentUser.name} (${State.currentUser.id})`;
+            updateSeatVisual(seat);
+
+            closeModal('modal-reserve');
+            playAudioTone('success');
+            triggerConfetti();
+
+            // Set Countdown Timer
+            startReservationCountdown(seat);
+
+            showToast(`Đã giữ chỗ ${seat.id}! Đang đếm ngược 15 phút.`);
+            logLiveEvent(`[APP] Sinh viên ${State.currentUser.name} vừa giữ chỗ ghế ${seat.id} (Tầng 6 CS B).`);
+        }
+
+        function startReservationCountdown(seat) {
+            let totalSeconds = 15 * 60; // 15 minutes
+            const banner = document.getElementById('active-res-banner');
+            const seatLabel = document.getElementById('active-res-seat-id');
+            const timerEl = document.getElementById('res-countdown-timer');
+
+            seatLabel.innerText = `Ghế ${seat.id} · ${seat.zone}`;
+            banner.classList.remove('hidden');
+
+            if (State.myReservation && State.myReservation.interval) {
+                clearInterval(State.myReservation.interval);
+            }
+
+            const interval = setInterval(() => {
+                totalSeconds--;
+                const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+                const secs = String(totalSeconds % 60).padStart(2, '0');
+                timerEl.innerText = `${mins}:${secs}`;
+
+                if (totalSeconds <= 0) {
+                    clearInterval(interval);
+                    if (seat.status === 'reserved') {
+                        seat.status = 'vacant';
+                        seat.user = null;
+                        updateSeatVisual(seat);
+                        banner.classList.add('hidden');
+                        showToast(`Hết thời gian 15 phút! Ghế ${seat.id} đã tự động giải phóng.`);
+                        logLiveEvent(`[AUTO] Hết 15 phút giữ chỗ. Edge AI tự động giải phóng ghế ${seat.id}.`);
+                    }
+                }
+            }, 1000);
+
+            State.myReservation = { seatId: seat.id, interval };
+        }
+
+        function cancelMyReservation() {
+            if (!State.myReservation) return;
+            const seat = SEATS.find(s => s.id === State.myReservation.seatId);
+            if (seat && seat.status === 'reserved') {
+                seat.status = 'vacant';
+                seat.user = null;
+                updateSeatVisual(seat);
+            }
+            clearInterval(State.myReservation.interval);
+            State.myReservation = null;
+            document.getElementById('active-res-banner').classList.add('hidden');
+            showToast('Đã hủy lượt giữ chỗ.');
+        }
+
+        // Simulate QR Check-in (Step 4 Workflow)
+        function simulateSuccessfulQRScan() {
+            closeModal('modal-qr');
+            let targetSeat = null;
+
+            if (State.myReservation) {
+                targetSeat = SEATS.find(s => s.id === State.myReservation.seatId);
+            } else if (State.selectedSeat) {
+                targetSeat = State.selectedSeat;
+            } else {
+                targetSeat = SEATS.find(s => s.status === 'vacant');
+            }
+
+            if (!targetSeat) return showToast('Không tìm thấy bàn hợp lệ!');
+
+            // Move Player Character to that seat in 3D
+            if (playerCharacter) {
+                playerCharacter.group.position.set(targetSeat.x, 0.6, targetSeat.z);
+                playerCharacter.state = 'sitting';
+            }
+
+            targetSeat.status = 'occupied';
+            targetSeat.user = `${State.currentUser.name} (Check-in QR)`;
+            updateSeatVisual(targetSeat);
+
+            if (State.myReservation) {
+                clearInterval(State.myReservation.interval);
+                State.myReservation = null;
+                document.getElementById('active-res-banner').classList.add('hidden');
+            }
+
+            playAudioTone('success');
+            triggerConfetti();
+            showToast(`Check-in QR thành công tại ghế ${targetSeat.id}! Bắt đầu tính giờ.`);
+            logLiveEvent(`[CHECK-IN] Sinh viên ${State.currentUser.name} đã quét mã QR check-in tại ghế ${targetSeat.id}.`);
+
+            // Add to session logs
+            USAGE_SESSIONS.unshift({
+                id: `SS-${Math.floor(1000 + Math.random()*9000)}`,
+                studentId: State.currentUser.id,
+                name: State.currentUser.name,
+                seatId: targetSeat.id,
+                checkIn: new Date().toLocaleTimeString(),
+                checkOut: '—',
+                duration: '1 phút',
+                method: 'QR Check-in',
+                status: 'Đang ngồi'
+            });
+            renderAdminLogsTable();
+        }
+
+        // Synchronize visual state between 3D and 2D
+        function updateSeatVisual(seat) {
+            // When seat is vacant, ensure its 3D character model is removed immediately
+            if (seat.status === 'vacant' && seat.character) {
+                removeCharacter(seat.character);
+                seat.character = null;
+            }
+
+            // Update 2D dot
+            if (seat.uiEl) {
+                seat.uiEl.className = `seat-2d ${seat.status}`;
+            }
+
+            // Update 3D mesh
+            if (seat.mesh) {
+                if (seat.status === 'vacant') {
+                    seat.mesh.material = mats.seatVacant;
+                    seat.ring.visible = false;
+                } else if (seat.status === 'occupied') {
+                    seat.mesh.material = mats.seatOccupied;
+                    seat.ring.visible = false;
+                } else if (seat.status === 'reserved') {
+                    seat.mesh.material = mats.seatVacant;
+                    seat.ring.visible = true;
+                } else if (seat.status === 'warning') {
+                    seat.mesh.material = mats.seatWarning;
+                    seat.ring.visible = false;
+                }
+            }
+
+            updateKPIs();
+            renderAdminSeatsTable();
+        }
+
+        function updateKPIs() {
+            const vacantCount = SEATS.filter(s => s.status === 'vacant').length;
+            const occupiedCount = SEATS.filter(s => s.status === 'occupied').length;
+            const reservedCount = SEATS.filter(s => s.status === 'reserved').length;
+            const warningCount = SEATS.filter(s => s.status === 'warning').length;
+
+            document.getElementById('count-vacant').innerText = vacantCount;
+            document.getElementById('count-occupied').innerText = occupiedCount;
+            document.getElementById('count-reserved').innerText = reservedCount;
+
+            document.getElementById('kpi-occupied').innerText = occupiedCount;
+            document.getElementById('kpi-vacant').innerText = vacantCount;
+            document.getElementById('kpi-occupancy-rate').innerText = `${((occupiedCount/32)*100).toFixed(1)}%`;
+            document.getElementById('kpi-warnings').innerText = warningCount;
+        }
+
+        // --- 6. SIMULATION LOGIC: AI SKELETAL AUTONOMY ---
+        function spawnStudent() {
+            const vacants = SEATS.filter(s => s.status === 'vacant');
+            if (vacants.length === 0) return showToast('Tất cả các ghế đều đã có người!');
+
+            const seat = vacants[Math.floor(Math.random() * vacants.length)];
+            const svId = `SV-${Math.floor(10 + Math.random()*89)}`;
+
+            const charObj = createCharacterVoxel(svId, `[${seat.zone}]`, 0x0284c7, false, { x: seat.x, z: seat.z }, true);
+            bindSeatCharacter(seat.id, charObj);
+
+            seat.status = 'occupied';
+            seat.user = svId;
+            updateSeatVisual(seat);
+
+            playAudioTone('success');
+            showToast(`AI phát hiện ${svId} vừa ngồi vào ghế ${seat.id}.`);
+            logLiveEvent(`[EDGE-AI] Camera AI phát hiện khung xương người tại ghế ${seat.id} (${seat.zone}).`);
+        }
+
+        function simulateBackpackDrop() {
+            const occupieds = SEATS.filter(s => s.status === 'occupied');
+            if (occupieds.length === 0) return showToast('Không có ghế nào đang có người để giả lập!');
+
+            const seat = occupieds[Math.floor(Math.random() * occupieds.length)];
+            // When student leaves backpack unattended, remove their human model from 3D scene
+            if (seat.character) {
+                removeCharacter(seat.character);
+                seat.character = null;
+            }
+            seat.status = 'warning';
+            seat.user = 'Balo không người (>5p)';
+            spawnBackpackMesh(seat.x, seat.z);
+            updateSeatVisual(seat);
+
+            playAudioTone('alert');
+            showToast(`CẢNH BÁO: Phát hiện balo không người tại ${seat.id} quá 5 phút!`);
+            logLiveEvent(`[WARNING] Camera AI phát hiện vật thể (Balo) nhưng KHÔNG CÓ KHUNG XƯƠNG quá 5 phút tại ${seat.id}!`);
+        }
+
+        function clearAllSeats() {
+            // 1. Clear all seats and remove their 3D models
+            SEATS.forEach(seat => {
+                if (seat.character) {
+                    removeCharacter(seat.character);
+                    seat.character = null;
+                }
+                seat.status = 'vacant';
+                seat.user = null;
+                updateSeatVisual(seat);
+            });
+
+            // 2. Clean up any remaining seated or guest students (keep STAFF-01 and player YOU)
+            for (let i = characters.length - 1; i >= 0; i--) {
+                const c = characters[i];
+                if (!c.isPlayer && c.id !== 'STAFF-01') {
+                    removeCharacter(c);
+                }
+            }
+
+            // 3. Remove backpack mesh if present
+            if (backpackMesh) {
+                scene.remove(backpackMesh);
+                backpackMesh = null;
+            }
+
+            // 4. Cancel active reservation if any
+            if (State.myReservation) cancelMyReservation();
+
+            // 5. Reset player position back to entrance lobby
+            if (playerCharacter) {
+                playerCharacter.group.position.set(0.0, 0.85, -7.2);
+                playerCharacter.state = 'walking';
+                if (playerCharacter.labelEl) {
+                    playerCharacter.labelEl.innerText = 'YOU (SV-01) · [Sảnh vào] Đang di chuyển';
+                }
+            }
+
+            updateKPIs();
+            renderAdminSeatsTable();
+            showToast('Đã giải phóng toàn bộ chỗ ngồi và xóa tất cả mô hình sinh viên 3D.');
+            logLiveEvent('[ADMIN] Toàn bộ 32 ghế và mô hình 3D sinh viên đã được giải phóng thành công.');
+        }
+
+        // Toggle AI Mode (Skeletal Lines & Wireframes)
+        function toggleAIMode() {
+            State.aiEnabled = !State.aiEnabled;
+            const btn = document.getElementById('btn-toggle-ai');
+            const txt = document.getElementById('text-ai-toggle');
+
+            if (State.aiEnabled) {
+                btn.className = 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-900/30 transition';
+                txt.innerText = 'AI: BẬT (Skeletal Vision)';
+            } else {
+                btn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg transition';
+                txt.innerText = 'AI: TẮT (Chế độ Thường)';
+            }
+
+            characters.forEach(c => {
+                c.bboxWire.visible = State.aiEnabled;
+                c.skeletalGroup.visible = State.aiEnabled;
+                c.labelEl.style.display = State.aiEnabled ? 'block' : 'none';
+            });
+
+            showToast(`Chế độ Camera AI: ${State.aiEnabled ? 'BẬT (Hiển thị Khung xương)' : 'TẮT'}`);
+        }
+
+        // Camera Views Switcher
+        function changeCameraAngle(viewKey) {
+            const preset = CAMERA_VIEWS[viewKey];
+            if (!preset) return;
+
+            // Smooth animated dolly camera
+            const duration = 1000;
+            const startPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+            const startTime = performance.now();
+
+            function animateCamera(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // EaseInOutCubic
+                const ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+                camera.position.lerpVectors(startPos, preset.pos, ease);
+                controls.target.lerpVectors(startTarget, preset.target, ease);
+                controls.update();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateCamera);
+                }
+            }
+            requestAnimationFrame(animateCamera);
+        }
+
+        function resetCameraView() {
+            document.getElementById('camera-selector').value = 'overview';
+            changeCameraAngle('overview');
+        }
+
+        // Keyboard Controls for YOU (Player Character)
+        const keys = { w: false, a: false, s: false, d: false };
+        window.addEventListener('keydown', e => {
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k)) keys[k] = true;
+        });
+        window.addEventListener('keyup', e => {
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k)) keys[k] = false;
+        });
+
+        // --- 7. ADMIN DASHBOARD LOGIC (Styled as sodientu.pages.dev/admin) ---
+        function switchAdminTab(tab) {
+            State.adminTab = tab;
+            document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+                btn.className = 'admin-tab-btn py-3 px-1 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap';
+            });
+            const activeBtn = document.getElementById(`tab-btn-${tab}`);
+            if (activeBtn) activeBtn.className = 'admin-tab-btn py-3 px-1 text-sm font-semibold border-b-2 border-teal-500 text-teal-400 whitespace-nowrap';
+
+            document.getElementById('admin-tab-stats').classList.toggle('hidden', tab !== 'stats');
+            document.getElementById('admin-tab-seats').classList.toggle('hidden', tab !== 'seats');
+            document.getElementById('admin-tab-logs').classList.toggle('hidden', tab !== 'logs');
+            document.getElementById('admin-tab-config').classList.toggle('hidden', tab !== 'config');
+
+            if (tab === 'seats') renderAdminSeatsTable();
+            if (tab === 'logs') renderAdminLogsTable();
+        }
+
+        function renderAdminSeatsTable() {
+            const tbody = document.getElementById('admin-seats-tbody');
+            tbody.innerHTML = '';
+
+            const search = (document.getElementById('admin-search-seat').value || '').toLowerCase();
+            const filterZone = document.getElementById('admin-filter-zone').value;
+            const filterStatus = document.getElementById('admin-filter-status').value;
+
+            const filtered = SEATS.filter(seat => {
+                if (search && !seat.id.toLowerCase().includes(search) && !seat.zone.toLowerCase().includes(search)) return false;
+                if (filterZone !== 'all' && seat.zone !== filterZone) return false;
+                if (filterStatus !== 'all' && seat.status !== filterStatus) return false;
+                return true;
+            });
+
+            filtered.forEach(seat => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-700/40 transition';
+
+                let statusBadge = '';
+                if (seat.status === 'vacant') statusBadge = '<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full text-[10px]">🟢 Trống</span>';
+                else if (seat.status === 'occupied') statusBadge = '<span class="bg-red-500/20 text-red-300 border border-red-500/40 px-2 py-0.5 rounded-full text-[10px]">🔴 Có người</span>';
+                else if (seat.status === 'reserved') statusBadge = '<span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full text-[10px]">🟡 Đang giữ chỗ</span>';
+                else if (seat.status === 'warning') statusBadge = '<span class="bg-orange-500/20 text-orange-300 border border-orange-500/40 px-2 py-0.5 rounded-full text-[10px] animate-pulse">⚠️ Balo xí chỗ</span>';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-white">${seat.id}</td>
+                    <td class="py-3 px-4 text-slate-300">${seat.zone}</td>
+                    <td class="py-3 px-4 text-teal-400">${seat.power ? '⚡ 220V' : '—'}</td>
+                    <td class="py-3 px-4 text-slate-400">${seat.noiseDb} dB</td>
+                    <td class="py-3 px-4 font-mono text-slate-400">${seat.x.toFixed(1)}, ${seat.z.toFixed(1)}</td>
+                    <td class="py-3 px-4">${statusBadge}</td>
+                    <td class="py-3 px-4 text-slate-300">${seat.user || '—'}</td>
+                    <td class="py-3 px-4 text-right space-x-1">
+                        <button onclick="adminForceFreeSeat('${seat.id}')" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded text-[10px] transition" title="Buộc giải phóng">Giải phóng</button>
+                        <button onclick="adminInspectSeat3D('${seat.id}')" class="bg-teal-600/60 hover:bg-teal-500 text-white px-2 py-1 rounded text-[10px] transition" title="Xem trên 3D">Xem 3D</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function adminForceFreeSeat(seatId) {
+            const seat = SEATS.find(s => s.id === seatId);
+            if (!seat) return;
+            seat.status = 'vacant';
+            seat.user = null;
+            updateSeatVisual(seat);
+            showToast(`Admin đã giải phóng chỗ ngồi ${seatId}.`);
+            logLiveEvent(`[ADMIN] Quản trị viên cưỡng chế giải phóng ghế ${seatId}.`);
+        }
+
+        function adminInspectSeat3D(seatId) {
+            const seat = SEATS.find(s => s.id === seatId);
+            if (!seat) return;
+
+            switchView('split');
+            const targetPos = new THREE.Vector3(seat.x + 4, 6, seat.z + 6);
+            const lookTarget = new THREE.Vector3(seat.x, 0.5, seat.z);
+
+            camera.position.copy(targetPos);
+            controls.target.copy(lookTarget);
+            controls.update();
+
+            showToast(`Đang quan sát vị trí ghế ${seatId} trên 3D`);
+        }
+
+        function releaseAllSeatsPrompt() {
+            if (confirm('Bạn có chắc chắn muốn giải phóng tất cả các ghế đang có người/giữ chỗ?')) {
+                clearAllSeats();
+            }
+        }
+
+        function renderAdminLogsTable() {
+            const tbody = document.getElementById('admin-logs-tbody');
+            tbody.innerHTML = '';
+
+            USAGE_SESSIONS.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-700/40 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-teal-400">${log.id}</td>
+                    <td class="py-3 px-4 text-slate-300 font-mono">${log.studentId}</td>
+                    <td class="py-3 px-4 font-semibold text-white">${log.name}</td>
+                    <td class="py-3 px-4 font-bold text-amber-300">${log.seatId}</td>
+                    <td class="py-3 px-4 text-slate-400">${log.checkIn}</td>
+                    <td class="py-3 px-4 text-slate-400">${log.checkOut}</td>
+                    <td class="py-3 px-4 text-slate-300">${log.duration}</td>
+                    <td class="py-3 px-4 text-teal-300">${log.method}</td>
+                    <td class="py-3 px-4"><span class="bg-slate-700 text-slate-200 px-2 py-0.5 rounded-full text-[10px]">${log.status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function logLiveEvent(msg) {
+            const stream = document.getElementById('live-event-stream');
+            const item = document.createElement('div');
+            const now = new Date().toLocaleTimeString();
+            item.className = 'flex items-center gap-2 border-b border-slate-700/50 pb-1';
+            item.innerHTML = `<span class="text-teal-400 font-mono text-[10px]">[${now}]</span> <span>${msg}</span>`;
+            stream.prepend(item);
+        }
+
+        function clearEventLogs() {
+            document.getElementById('live-event-stream').innerHTML = '';
+        }
+
+        // Export CSV Report (Matching user reference sodientu.pages.dev/admin)
+        function exportCSVReport() {
+            let csv = "Mã Phiên,MSSV,Họ và Tên,Ghế,Thời Gian Vào,Thời Gian Ra,Thời Lượng,Phương Thức,Trạng Thái\n";
+            USAGE_SESSIONS.forEach(s => {
+                csv += `"${s.id}","${s.studentId}","${s.name}","${s.seatId}","${s.checkIn}","${s.checkOut}","${s.duration}","${s.method}","${s.status}"\n`;
+            });
+
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `SmartSpace_UEH_Report_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('Đã tải xuống file báo cáo Excel (CSV) thành công!');
+        }
+
+        // Initialize Chart.js
+        let chartTraffic, chartZones;
+        function initCharts() {
+            const ctxTraffic = document.getElementById('chart-hourly-traffic').getContext('2d');
+            chartTraffic = new Chart(ctxTraffic, {
+                type: 'line',
+                data: {
+                    labels: ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'],
+                    datasets: [{
+                        label: 'Lượt sinh viên vào',
+                        data: [45, 120, 240, 290, 260, 150, 180, 310, 320, 280, 190, 140, 95, 40],
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.15)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            const ctxZones = document.getElementById('chart-zone-distribution').getContext('2d');
+            chartZones = new Chart(ctxZones, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Quiet Study', 'Meeting Room', 'Conversational Sofa', 'Mini Auditorium'],
+                    datasets: [{
+                        data: [16, 6, 4, 6],
+                        backgroundColor: ['#38bdf8', '#a855f7', '#22c55e', '#facc15'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 }, boxWidth: 10 } }
+                    }
+                }
+            });
+        }
+
+        // --- 8. AUTHENTICATION CONTROLLER ---
+        function openAuthModal() { openModal('modal-auth'); }
+        function switchAuthTab(tab) {
+            document.getElementById('auth-tab-login').className = tab === 'login' ? 'flex-1 py-2 text-center border-b-2 border-teal-500 text-teal-400' : 'flex-1 py-2 text-center border-b-2 border-transparent text-slate-400 hover:text-white';
+            document.getElementById('auth-tab-register').className = tab === 'register' ? 'flex-1 py-2 text-center border-b-2 border-teal-500 text-teal-400' : 'flex-1 py-2 text-center border-b-2 border-transparent text-slate-400 hover:text-white';
+            document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            if (email.toLowerCase().includes('admin')) {
+                quickLogin('admin');
+            } else {
+                quickLogin('student');
+            }
+        }
+
+        function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('reg-id').value;
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const faculty = document.getElementById('reg-faculty').value;
+
+            State.currentUser = { id, name, role: 'student', email, faculty };
+            applyUserSession();
+            closeModal('modal-auth');
+            showToast(`Chúc mừng ${name} đã đăng ký thành công!`);
+        }
+
+        function toggleRoleQuickly() {
+            if (State.currentUser.role === 'admin') {
+                quickLogin('student');
+            } else {
+                quickLogin('admin');
+            }
+        }
+
+        function handlePhoneAdminClick() {
+            if (State.currentUser.role === 'admin') {
+                switchView('admin');
+            } else {
+                openAuthModal();
+            }
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            if (email.toLowerCase().includes('admin')) {
+                quickLogin('admin');
+            } else {
+                quickLogin('student');
+            }
+        }
+
+        function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('reg-id').value;
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const faculty = document.getElementById('reg-faculty').value;
+
+            State.currentUser = { id, name, role: 'student', email, faculty };
+            applyUserSession();
+            closeModal('modal-auth');
+            showToast(`Chúc mừng ${name} đã đăng ký tài khoản Sinh viên UEH thành công!`);
+        }
+
+        function quickLogin(role) {
+            if (role === 'admin') {
+                State.currentUser = {
+                    id: 'AD-99',
+                    name: 'ThS. Đỗ Văn Nam',
+                    role: 'admin',
+                    email: 'admin@ueh.edu.vn',
+                    faculty: 'Ban Quản lý Thư viện Cơ sở B'
+                };
+                applyUserSession();
+                switchView('split');
+                showToast(`Đã đăng nhập: ${State.currentUser.name} (Quản trị viên - Toàn quyền truy cập)`);
+            } else {
+                State.currentUser = {
+                    id: '31211025889',
+                    name: 'Nguyễn Văn B',
+                    role: 'student',
+                    email: 'b.31211025889@st.ueh.edu.vn',
+                    faculty: 'Công nghệ thông tin kinh doanh'
+                };
+                applyUserSession();
+                switchView('mobile');
+                showToast(`Đã đăng nhập: ${State.currentUser.name} (Sinh viên - Chỉ sử dụng App Sinh viên)`);
+            }
+            closeModal('modal-auth');
+        }
+
+        function applyUserSession() {
+            const isAdmin = State.currentUser.role === 'admin';
+            document.getElementById('user-name-text').innerText = State.currentUser.name;
+            document.getElementById('user-role-text').innerText = isAdmin ? 'Quản trị viên (Toàn quyền)' : 'Sinh viên UEH (Chỉ dùng App)';
+            
+            const avatarDot = document.getElementById('user-avatar-dot');
+            avatarDot.innerText = isAdmin ? 'AD' : 'SV';
+            avatarDot.className = isAdmin 
+                ? 'w-6 h-6 rounded-full bg-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-center border border-rose-500/50' 
+                : 'w-6 h-6 rounded-full bg-teal-500/30 text-teal-300 font-bold text-xs flex items-center justify-center border border-teal-500/50';
+
+            // Fast role switch button in header
+            const roleBtn = document.getElementById('btn-quick-role-toggle');
+            if (roleBtn) {
+                if (isAdmin) {
+                    roleBtn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-950/70 text-rose-300 border border-rose-500/50 hover:bg-rose-900 transition flex items-center gap-1.5 shadow-sm';
+                    roleBtn.innerHTML = '<span>🛡️ Admin</span> <span class="text-[10px] text-rose-400">➜ Đổi sang SV</span>';
+                    roleBtn.title = 'Bấm để đổi sang tài khoản Sinh viên (giới hạn quyền)';
+                } else {
+                    roleBtn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-teal-950/70 text-teal-300 border border-teal-500/50 hover:bg-teal-900 transition flex items-center gap-1.5 shadow-sm';
+                    roleBtn.innerHTML = '<span>🎓 SV</span> <span class="text-[10px] text-teal-400">➜ Đổi sang Admin</span>';
+                    roleBtn.title = 'Bấm để đổi sang tài khoản Quản trị viên (toàn quyền)';
+                }
+            }
+
+            // Role-based visibility for Navigation Tabs
+            const btnSplit = document.getElementById('btn-view-split');
+            const btnMobile = document.getElementById('btn-view-mobile');
+            const btnTwin = document.getElementById('btn-view-twin');
+            const btnAdmin = document.getElementById('btn-view-admin');
+            const studentIndicator = document.getElementById('student-role-indicator');
+
+            if (btnSplit) btnSplit.style.setProperty('display', isAdmin ? 'inline-flex' : 'none', 'important');
+            if (btnTwin) btnTwin.style.setProperty('display', isAdmin ? 'inline-flex' : 'none', 'important');
+            if (btnAdmin) btnAdmin.style.setProperty('display', isAdmin ? 'inline-flex' : 'none', 'important');
+            if (studentIndicator) studentIndicator.style.setProperty('display', isAdmin ? 'none' : 'inline-flex', 'important');
+
+            if (!isAdmin) {
+                switchView('mobile');
+            }
+            // Phone bottom bar label
+            const phoneLabel = document.getElementById('phone-admin-label');
+            if (phoneLabel) {
+                phoneLabel.innerText = isAdmin ? 'Admin' : 'Tài khoản';
+            }
+        }
+
+        // --- 9. VIEW SWITCHER ---
+        function switchView(mode) {
+            // RBAC Enforcement: Student cannot access split, twin or admin views
+            if (State.currentUser.role === 'student' && mode !== 'mobile') {
+                showToast('🔒 Quyền truy cập bị từ chối: Tài khoản Sinh viên chỉ có quyền sử dụng App Sinh viên!');
+                return;
+            }
+
+            State.view = mode;
+            document.querySelectorAll('.view-tab-btn').forEach(btn => {
+                btn.className = 'view-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all';
+            });
+            const activeBtn = document.getElementById(`btn-view-${mode}`);
+            if (activeBtn) activeBtn.className = 'view-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-700 shadow-sm transition-all';
+
+            const splitWrapper = document.getElementById('view-split');
+            const adminWrapper = document.getElementById('view-admin');
+            const left3d = splitWrapper.children[0];
+            const rightApp = splitWrapper.children[1];
+
+            if (mode === 'split') {
+                splitWrapper.classList.remove('hidden');
+                adminWrapper.classList.add('hidden');
+                left3d.className = 'w-[64%] h-full relative border-r border-slate-800 bg-slate-950 flex flex-col overflow-hidden';
+                rightApp.className = 'w-[36%] h-full bg-slate-900 border-l border-slate-800 flex items-center justify-center p-3 relative overflow-hidden';
+                left3d.style.display = 'flex';
+                rightApp.style.display = 'flex';
+            } else if (mode === 'twin') {
+                splitWrapper.classList.remove('hidden');
+                adminWrapper.classList.add('hidden');
+                left3d.className = 'w-full h-full relative bg-slate-950 flex flex-col overflow-hidden';
+                rightApp.style.display = 'none';
+            } else if (mode === 'mobile') {
+                splitWrapper.classList.remove('hidden');
+                adminWrapper.classList.add('hidden');
+                left3d.style.display = 'none';
+                rightApp.className = 'w-full h-full bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden';
+                rightApp.style.display = 'flex';
+            } else if (mode === 'admin') {
+                splitWrapper.classList.add('hidden');
+                adminWrapper.classList.remove('hidden');
+                renderAdminSeatsTable();
+                renderAdminLogsTable();
+            }
+
+            onWindowResize();
+        }
+        // --- 10. SOUND FX & MODAL HELPERS ---
+        let audioCtx = null;
+        function playAudioTone(type) {
+            if (!State.audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'success') {
+                    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'alert') {
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(330, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.4);
+                }
+            } catch (e) {}
+        }
+
+        function toggleAudio() {
+            State.audioEnabled = !State.audioEnabled;
+            document.getElementById('icon-audio-on').classList.toggle('hidden', !State.audioEnabled);
+            document.getElementById('icon-audio-off').classList.toggle('hidden', State.audioEnabled);
+            showToast(`Âm thanh thông báo: ${State.audioEnabled ? 'BẬT' : 'TẮT'}`);
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        function openQRModal() {
+            if (State.myReservation) {
+                document.getElementById('qr-target-label').innerText = State.myReservation.seatId;
+            }
+            openModal('modal-qr');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').innerText = msg;
+            toast.style.opacity = '1';
+            toast.style.transform = 'translate(-50%, 0)';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, -10px)';
+            }, 3200);
+        }
+
+        function onWindowResize() {
+            if (!renderer || !camera || !canvasContainer) return;
+            const r = canvasContainer.getBoundingClientRect();
+            const w = Math.floor(r.width) || canvasContainer.clientWidth;
+            const h = Math.floor(r.height) || canvasContainer.clientHeight;
+            if (w === 0 || h === 0) return;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+
+        // --- 11. MAIN ENGINE ANIMATION LOOP ---
+        const tempV = new THREE.Vector3();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 1. Move Player Character
+            if (playerCharacter && (keys.w || keys.s || keys.a || keys.d)) {
+                const speed = 0.12;
+                if (keys.w) playerCharacter.group.position.z -= speed;
+                if (keys.s) playerCharacter.group.position.z += speed;
+                if (keys.a) playerCharacter.group.position.x -= speed;
+                if (keys.d) playerCharacter.group.position.x += speed;
+
+                // Clamp to floor boundary
+                playerCharacter.group.position.x = Math.max(-19, Math.min(19, playerCharacter.group.position.x));
+                playerCharacter.group.position.z = Math.max(-13, Math.min(13, playerCharacter.group.position.z));
+
+                // Proximity check with reserved seat for automatic check-in
+                if (State.myReservation) {
+                    const mySeat = SEATS.find(s => s.id === State.myReservation.seatId);
+                    if (mySeat) {
+                        const dist = Math.hypot(playerCharacter.group.position.x - mySeat.x, playerCharacter.group.position.z - mySeat.z);
+                        if (dist < 1.2) {
+                            simulateSuccessfulQRScan();
+                        }
+                    }
+                }
+            }
+
+            // 2. Rotate Rings on Reserved Seats
+            SEATS.forEach(seat => {
+                if (seat.status === 'reserved' && seat.ring) {
+                    seat.ring.rotation.z += 0.04;
+                }
+            });
+
+            // 3. Project 3D HUD Labels to 2D Screen
+            if (State.aiEnabled && canvasContainer.clientWidth > 0) {
+                characters.forEach(c => {
+                    tempV.copy(c.group.position).add(new THREE.Vector3(0, 1.35, 0)).project(camera);
+                    const x = (tempV.x * 0.5 + 0.5) * canvasContainer.clientWidth;
+                    const y = (tempV.y * -0.5 + 0.5) * canvasContainer.clientHeight;
+
+                    // Hide if behind camera
+                    if (tempV.z < 1) {
+                        c.labelEl.style.display = 'block';
+                        c.labelEl.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+                    } else {
+                        c.labelEl.style.display = 'none';
+                    }
+                });
+            }
+
+            // Update live clock
+            document.getElementById('live-time-stamp').innerText = new Date().toLocaleTimeString();
+
+            // Auto-adjust size on any layout update or dynamic resolution
+            if (canvasContainer && renderer) {
+                const r = canvasContainer.getBoundingClientRect();
+                const curW = Math.floor(r.width);
+                const curH = Math.floor(r.height);
+                if (curW > 50 && curH > 50) {
+                    if (renderer.domElement.width !== curW || renderer.domElement.height !== curH || !isFinite(camera.aspect)) {
+                        camera.aspect = curW / curH;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(curW, curH);
+                    }
+                }
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // --- 12. BOOTSTRAP APPLICATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            init3DScene();
+            initApp2DMap();
+            initCharts();
+            applyUserSession();
+            switchView(State.currentUser.role === 'admin' ? 'split' : 'mobile');
+            animate();
+
+            logLiveEvent('[INIT] Hệ thống Smart-Space UEH Tầng 6 NTP khởi động thành công.');
+            logLiveEvent('[CCTV] 6 Cụm Camera CCTV góc trần đã kết nối bộ xử lý Edge AI YOLOv8-Pose.');
+        });
+    </script>
+</body>
+</html>
